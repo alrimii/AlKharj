@@ -11,6 +11,86 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%235b4cfd'/><text x='50' y='65' font-size='50' fill='white' text-anchor='middle' font-family='Arial'>W</text></svg>">
+    
+    <style>
+        /* Additional styles for token status */
+        .token-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            margin-right: 1rem;
+        }
+        
+        .token-status .status-valid {
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .token-status .status-expired {
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .token-status small {
+            color: #9ca3af;
+            margin-left: 0.25rem;
+        }
+        
+        .token-status-message {
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            color: #92400e;
+        }
+        
+        .alert-warning i {
+            color: #f59e0b;
+        }
+        
+        .btn-secondary {
+            padding: 0.75rem 1.5rem;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary i {
+            font-size: 0.875rem;
+        }
+    </style>
 </head>
 <body>
     <div id="app">
@@ -27,6 +107,9 @@
                 </div>
                 <h1 class="login-title">WSE Class Tracker</h1>
                 <p class="login-subtitle">Professional Class Management System</p>
+                
+                <!-- Token status will be inserted here dynamically -->
+                
                 <form id="loginForm">
                     <div class="form-group">
                         <label for="authToken">
@@ -34,10 +117,13 @@
                             Authentication Token
                         </label>
                         <textarea id="authToken" 
-                                  placeholder="Paste your authentication token here..." 
+                                  placeholder="Token will be loaded automatically, or paste manually..." 
                                   required
                                   autocomplete="off"
                                   spellcheck="false"></textarea>
+                        <small style="color: #6b7280; margin-top: 0.25rem; display: block;">
+                            Token is managed automatically. Manual entry is optional.
+                        </small>
                     </div>
                     <div class="form-group">
                         <label for="centerName">
@@ -47,6 +133,7 @@
                         <input type="text" 
                                id="centerName" 
                                placeholder="Enter your center name (optional)"
+                               value="WSE Center"
                                autocomplete="off">
                     </div>
                     <button type="submit" class="btn-primary">
@@ -77,6 +164,7 @@
                             <i class="fas fa-building"></i>
                             <span id="centerDisplay">Loading...</span>
                         </div>
+                        <!-- Token status indicator will be inserted here -->
                         <button id="refreshBtn" 
                                 class="refresh-btn" 
                                 title="Refresh data from server"
@@ -152,27 +240,84 @@
     <!-- Load JavaScript Modules -->
     <script type="module">
         import { App } from './src/js/app.js';
+        import { TokenManager } from './src/js/tokenManager.js';
+        
+        // Make TokenManager available globally for debugging
+        window.TokenManager = TokenManager;
         
         // Initialize application when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing WSE Tracker Application...');
+            
+            // Create app instance
             window.wseApp = new App();
             
             // Add smooth transitions when switching modes
             document.querySelectorAll('.mode-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const contentArea = document.getElementById('contentArea');
-                    contentArea.style.opacity = '0';
-                    setTimeout(() => {
-                        contentArea.style.opacity = '1';
-                    }, 150);
+                    if (contentArea) {
+                        contentArea.style.opacity = '0';
+                        setTimeout(() => {
+                            contentArea.style.opacity = '1';
+                        }, 150);
+                    }
                 });
             });
             
             // Add visual feedback for form submission
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
-                const button = this.querySelector('.btn-primary');
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Authenticating...</span>';
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    const button = this.querySelector('.btn-primary');
+                    if (button) {
+                        const originalContent = button.innerHTML;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Authenticating...</span>';
+                        
+                        // Reset after 3 seconds if still loading
+                        setTimeout(() => {
+                            if (button.innerHTML.includes('fa-spinner')) {
+                                button.innerHTML = originalContent;
+                            }
+                        }, 3000);
+                    }
+                });
+            }
+            
+            // Debug helper - press Ctrl+Shift+D to see token info
+            document.addEventListener('keydown', async (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                    e.preventDefault();
+                    
+                    const tm = new TokenManager();
+                    await tm.initialize();
+                    const info = await tm.getTokenInfo();
+                    
+                    console.group('🔐 Token Debug Info');
+                    console.log('Token Status:', info);
+                    console.log('Firebase Initialized:', info.initialized);
+                    console.log('Has Firebase Token:', info.hasFirebaseToken);
+                    console.log('Has Local Token:', info.hasLocalToken);
+                    console.log('Token Age:', info.firebaseValidity?.ageInHours + ' hours');
+                    console.log('Needs Refresh:', info.firebaseValidity?.needsRefresh);
+                    console.groupEnd();
+                    
+                    // Show alert with basic info
+                    alert(`Token Status:
+- Firebase Token: ${info.hasFirebaseToken ? 'Yes' : 'No'}
+- Local Token: ${info.hasLocalToken ? 'Yes' : 'No'}
+- Token Age: ${info.firebaseValidity?.ageInHours || 'Unknown'} hours
+- Valid: ${info.firebaseValidity?.valid ? 'Yes' : 'No'}
+- Needs Refresh: ${info.firebaseValidity?.needsRefresh ? 'Yes' : 'No'}`);
+                }
             });
+            
+            // Add version info to console
+            console.log('%c WSE Tracker v2.0 ', 
+                'background: #5b4cfd; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;'
+            );
+            console.log('Features: Auto-token update, Firebase caching, Real-time sync');
+            console.log('Press Ctrl+Shift+D for token debug info');
         });
     </script>
 </body>
