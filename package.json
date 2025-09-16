@@ -1,16 +1,9 @@
 {
   "name": "wse-tracker",
   "version": "1.0.0",
-  "description": "WSE Class Tracker with Auto Token Update",
-  "scripts": {
-    "build": "echo 'No build needed'"
-  },
   "dependencies": {
-    "chrome-aws-lambda": "^10.1.0",
-    "puppeteer-core": "^19.7.2",
+    "@sparticuz/chromium": "^119.0.0",
+    "puppeteer-core": "^21.5.0",
     "firebase-admin": "^11.5.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }

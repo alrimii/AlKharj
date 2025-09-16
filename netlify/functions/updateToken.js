@@ -1,5 +1,5 @@
 // netlify/functions/updateToken.js
-const chromium = require('chrome-aws-lambda');
+const chromium = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-core');
 const admin = require('firebase-admin');
 
