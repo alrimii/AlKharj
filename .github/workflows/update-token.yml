@@ -18,7 +18,7 @@ jobs:
         response=$(curl -X POST \
           -H "Authorization: Bearer ${{ secrets.UPDATE_TOKEN_SECRET }}" \
           -H "Content-Type: application/json" \
-          https://your-site-name.netlify.app/.netlify/functions/updateToken)
+          https://wse-tracker.netlify.app/.netlify/functions/updateToken)
         
         echo "Response: $response"
         
