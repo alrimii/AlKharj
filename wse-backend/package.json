@@ -1,0 +1,10 @@
+{
+  "name": "wse-token-updater",
+  "version": "1.0.0",
+  "description": "WSE Token Auto-Updater",
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^19.7.2",
+    "firebase-admin": "^11.5.0"
+  }
+}

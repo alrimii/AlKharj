@@ -1,0 +1,37 @@
+name: Update WSE Token
+
+on:
+  schedule:
+    # يعمل يومياً الساعة 10 مساءً بتوقيت السعودية (7 PM UTC)
+    - cron: '0 19 * * *'
+  
+  # يسمح بالتشغيل اليدوي
+  workflow_dispatch:
+
+jobs:
+  update-token:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Call Netlify Function
+      run: |
+        response=$(curl -X POST \
+          -H "Authorization: Bearer ${{ secrets.UPDATE_TOKEN_SECRET }}" \
+          -H "Content-Type: application/json" \
+          https://your-site-name.netlify.app/.netlify/functions/updateToken)
+        
+        echo "Response: $response"
+        
+        # Check if successful
+        if echo "$response" | grep -q '"success":true'; then
+          echo "✅ Token updated successfully"
+        else
+          echo "❌ Token update failed"
+          exit 1
+        fi
+    
+    - name: Send notification on failure
+      if: failure()
+      run: |
+        # يمكنك إضافة إشعار عبر البريد أو Slack هنا
+        echo "Token update failed at $(date)"
