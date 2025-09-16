@@ -11,11 +11,13 @@ jobs:
     
     steps:
     - name: Update Token via Netlify Function
+      env:
+        TOKEN_SECRET: ${{ secrets.UPDATE_TOKEN_SECRET }}
       run: |
         echo "Starting token update..."
         
         response=$(curl -X POST \
-          -H "Authorization: Bearer ${{ secrets.UPDATE_TOKEN_SECRET }}" \
+          -H "Authorization: Bearer ${TOKEN_SECRET}" \
           -H "Content-Type: application/json" \
           -d '{"trigger": "github-action"}' \
           https://wse-tracker.netlify.app/.netlify/functions/updateToken \
@@ -31,5 +33,6 @@ jobs:
           echo "Token updated successfully"
         else
           echo "Token update failed"
+          echo "Debug: Token was ${#TOKEN_SECRET} characters long"
           exit 1
         fi
