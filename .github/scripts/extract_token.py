@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -62,7 +63,7 @@ try:
                 let key = localStorage.key(i);
                 let value = localStorage.getItem(key);
                 console.log(key + ': ' + (value ? value.substring(0,50) : 'empty'));
-                if(value && value.startsWith('eyJ') && value.length > 100) {
+                if(value && value.startswith('eyJ') && value.length > 100) {
                     return value;
                 }
             }
@@ -74,20 +75,25 @@ try:
     if token and token.startswith("eyJ"):
         print(f"Token extracted: {token[:30]}...")
         
-        # Save to Firebase
+        # Save to Firebase with proper expiry time
         cred_dict = json.loads(os.environ['FIREBASE_CREDS'])
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
         db = firestore.client()
         
+        # Set expiry to 10 hours from now
+        expiry_time = datetime.datetime.now() + datetime.timedelta(hours=10)
+        
         db.collection('config').document('wseToken').set({
             'token': token,
             'updatedAt': firestore.SERVER_TIMESTAMP,
-            'expiresAt': firestore.SERVER_TIMESTAMP,
-            'source': 'github-action'
+            'expiresAt': expiry_time,
+            'source': 'github-action',
+            'expiresInHours': 10
         })
         
-        print("Token saved to Firebase successfully")
+        print(f"Token saved to Firebase successfully")
+        print(f"Token will expire at: {expiry_time}")
     else:
         print("ERROR: No valid token found!")
         print("Check if login was successful")

@@ -2,8 +2,10 @@ name: Update WSE Token Daily
 
 on:
   schedule:
-    - cron: '0 */10 * * *'  # كل 10 ساعات
-  workflow_dispatch:
+    # يعمل يومياً الساعة 11:30 صباحاً بتوقيت السعودية
+    # السعودية UTC+3، لذا 11:30 AM = 8:30 AM UTC
+    - cron: '30 8 * * *'
+  workflow_dispatch:  # للتشغيل اليدوي
 
 jobs:
   update-token:
