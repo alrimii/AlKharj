@@ -1,11 +1,8 @@
-name: Update WSE Token
+name: Update WSE Token Daily
 
 on:
   schedule:
-    # يعمل يومياً الساعة 10 مساءً بتوقيت السعودية (7 PM UTC)
     - cron: '0 19 * * *'
-  
-  # يسمح بالتشغيل اليدوي
   workflow_dispatch:
 
 jobs:
@@ -13,25 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Call Netlify Function
+    - name: Update Token via Netlify Function
       run: |
+        echo "Starting token update..."
+        
         response=$(curl -X POST \
           -H "Authorization: Bearer ${{ secrets.UPDATE_TOKEN_SECRET }}" \
           -H "Content-Type: application/json" \
-          https://wse-tracker.netlify.app/.netlify/functions/updateToken)
+          -d '{"trigger": "github-action"}' \
+          https://wse-tracker.netlify.app/.netlify/functions/updateToken \
+          -s -w "\nHTTP_CODE:%{http_code}")
         
-        echo "Response: $response"
+        body=$(echo "$response" | sed -n '1,/^HTTP_CODE:/p' | sed '$d')
+        http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
         
-        # Check if successful
-        if echo "$response" | grep -q '"success":true'; then
-          echo "✅ Token updated successfully"
+        echo "Response: $body"
+        echo "Status Code: $http_code"
+        
+        if [ "$http_code" = "200" ]; then
+          echo "Token updated successfully"
         else
-          echo "❌ Token update failed"
+          echo "Token update failed"
           exit 1
         fi
-    
-    - name: Send notification on failure
-      if: failure()
-      run: |
-        # يمكنك إضافة إشعار عبر البريد أو Slack هنا
-        echo "Token update failed at $(date)"
