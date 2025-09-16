@@ -2,7 +2,7 @@ name: Update WSE Token Daily
 
 on:
   schedule:
-    - cron: '0 19 * * *'
+    - cron: '0 */10 * * *'  # كل 10 ساعات
   workflow_dispatch:
 
 jobs:
@@ -10,29 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Update Token via Netlify Function
-      env:
-        TOKEN_SECRET: ${{ secrets.UPDATE_TOKEN_SECRET }}
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
       run: |
-        echo "Starting token update..."
-        
-        response=$(curl -X POST \
-          -H "Authorization: Bearer ${TOKEN_SECRET}" \
-          -H "Content-Type: application/json" \
-          -d '{"trigger": "github-action"}' \
-          https://wse-tracker.netlify.app/.netlify/functions/updateToken \
-          -s -w "\nHTTP_CODE:%{http_code}")
-        
-        body=$(echo "$response" | sed -n '1,/^HTTP_CODE:/p' | sed '$d')
-        http_code=$(echo "$response" | grep "HTTP_CODE:" | cut -d: -f2)
-        
-        echo "Response: $body"
-        echo "Status Code: $http_code"
-        
-        if [ "$http_code" = "200" ]; then
-          echo "Token updated successfully"
-        else
-          echo "Token update failed"
-          echo "Debug: Token was ${#TOKEN_SECRET} characters long"
-          exit 1
-        fi
+        pip install selenium webdriver-manager
+        pip install firebase-admin
+    
+    - name: Extract and save token
+      env:
+        WSE_USERNAME: ${{ secrets.WSE_USERNAME }}
+        WSE_PASSWORD: ${{ secrets.WSE_PASSWORD }}
+        FIREBASE_CREDS: ${{ secrets.FIREBASE_CREDS }}
+      run: |
+        python .github/scripts/extract_token.py
