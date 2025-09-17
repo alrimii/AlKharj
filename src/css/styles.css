@@ -1099,7 +1099,6 @@ table tbody td.status-cell {
 }
 
 .time-warning-row::before {
-    content: '';
     position: absolute;
     left: 0;
     top: 0;
