@@ -2,7 +2,6 @@ name: Update WSE Token
 
 on:
   schedule:
-    # كل 12 ساعة - 11:30 صباحاً و 11:30 مساءً بتوقيت السعودية
     - cron: '30 8,20 * * *'
   workflow_dispatch:
 
@@ -11,28 +10,21 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
     
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.10'
     
-    - name: Setup Chrome
-      uses: browser-actions/setup-chrome@v1
-      with:
-        chrome-version: stable
-    
-    - name: Install Python dependencies
+    - name: Install Chrome and dependencies
       run: |
-        pip install selenium==4.15.2
-        pip install firebase-admin==6.1.0
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+        pip install selenium==4.15.2 firebase-admin==6.1.0
     
-    - name: Extract and save token
+    - name: Extract token
       env:
         WSE_USERNAME: ${{ secrets.WSE_USERNAME }}
         WSE_PASSWORD: ${{ secrets.WSE_PASSWORD }}
         FIREBASE_CREDS: ${{ secrets.FIREBASE_CREDS }}
-      run: |
-        python .github/scripts/extract_token.py
+      run: python .github/scripts/extract_token.py
