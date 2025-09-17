@@ -3,11 +3,8 @@ name: Update WSE Token
 on:
   schedule:
     # كل 12 ساعة - 11:30 صباحاً و 11:30 مساءً بتوقيت السعودية
-    # السعودية UTC+3، لذا:
-    # 11:30 AM السعودية = 8:30 AM UTC
-    # 11:30 PM السعودية = 8:30 PM UTC (20:30)
     - cron: '30 8,20 * * *'
-  workflow_dispatch:  # للتشغيل اليدوي
+  workflow_dispatch:
 
 jobs:
   update-token:
@@ -22,16 +19,19 @@ jobs:
       with:
         python-version: '3.10'
     
-    - name: Install Chrome
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y chromium-browser
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@latest
+      with:
+        chrome-version: stable
     
-    - name: Install Python dependencies
+    - name: Install dependencies
       run: |
-        pip install selenium
-        pip install webdriver-manager
-        pip install firebase-admin
+        pip install selenium==4.15.2
+        pip install webdriver-manager==4.0.1
+        pip install firebase-admin==6.1.0
+        
+        # Verify Chrome installation
+        google-chrome --version
     
     - name: Extract and save token
       env:
