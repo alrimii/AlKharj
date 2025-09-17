@@ -1,4 +1,4 @@
-// app.js - النسخة النهائية مع جميع الإصلاحات
+// app.js - النسخة النهائية مع إصلاح التحديث التلقائي
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -33,6 +33,7 @@ export class App {
             isFirstLoad: true,
             loadingProgress: 0,
             isManualRefresh: false,
+            isAutoRefresh: false, // NEW: Track auto refresh state
             tokenStatus: 'checking'
         };
 
@@ -221,33 +222,15 @@ export class App {
             this.logout();
         });
 
-        // Refresh button handler
+        // FIXED: Enhanced refresh button handler
         document.getElementById('refreshBtn')?.addEventListener('click', async () => {
+            if (this.state.isLoading) {
+                console.log('Refresh already in progress, ignoring click');
+                return; // Prevent double refresh
+            }
+
             console.log('Manual refresh triggered');
-            
-            const refreshBtn = document.getElementById('refreshBtn');
-            const originalHTML = refreshBtn.innerHTML;
-            refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
-            refreshBtn.disabled = true;
-            
-            this.state.isManualRefresh = true;
-            this.ui.showToast('Refreshing data from server...', 'info');
-            
-            if (this.api) {
-                this.api.clearCache();
-            }
-            
-            try {
-                await this.loadAllData(true);
-                this.ui.showToast('✓ Data refreshed successfully', 'success');
-            } catch (error) {
-                console.error('Refresh failed:', error);
-                this.ui.showToast('Failed to refresh data', 'error');
-            } finally {
-                this.state.isManualRefresh = false;
-                refreshBtn.innerHTML = originalHTML;
-                refreshBtn.disabled = false;
-            }
+            await this.performRefresh(true); // Manual refresh
         });
 
         document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -255,6 +238,74 @@ export class App {
                 this.switchMode(btn.dataset.mode);
             });
         });
+    }
+
+    // NEW: Centralized refresh function
+    async performRefresh(isManual = false) {
+        if (this.state.isLoading) {
+            console.log('Refresh already in progress');
+            return;
+        }
+
+        const refreshBtn = document.getElementById('refreshBtn');
+        
+        try {
+            // Set loading state
+            this.state.isLoading = true;
+            this.state.isManualRefresh = isManual;
+            this.state.isAutoRefresh = !isManual;
+
+            // Update refresh button state
+            if (refreshBtn) {
+                const originalHTML = refreshBtn.innerHTML;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+                refreshBtn.disabled = true;
+                refreshBtn.classList.add('refreshing');
+            }
+
+            // Show appropriate message
+            if (isManual) {
+                this.ui.showToast('Refreshing data from server...', 'info');
+            } else {
+                console.log('Auto refresh at', new Date().toLocaleTimeString());
+            }
+
+            // Clear API cache for fresh data
+            if (this.api) {
+                this.api.clearCache();
+            }
+
+            // Load fresh data
+            await this.loadAllData(true);
+
+            // Success message
+            if (isManual) {
+                this.ui.showToast('✓ Data refreshed successfully', 'success');
+            } else {
+                console.log('✓ Auto refresh completed successfully');
+            }
+
+        } catch (error) {
+            console.error('Refresh failed:', error);
+            
+            if (isManual) {
+                this.ui.showToast('Failed to refresh data: ' + error.message, 'error');
+            } else {
+                console.error('Auto refresh failed:', error.message);
+            }
+        } finally {
+            // Reset loading state
+            this.state.isLoading = false;
+            this.state.isManualRefresh = false;
+            this.state.isAutoRefresh = false;
+
+            // Reset refresh button
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove('refreshing');
+            }
+        }
     }
 
     async handleManualLogin() {
@@ -348,9 +399,13 @@ export class App {
         // Auto refresh every 5 minutes
         const refreshInterval = 5 * 60 * 1000;
         
-        this.autoRefreshInterval = setInterval(() => {
-            console.log('Auto refresh at', new Date().toLocaleTimeString());
-            this.loadAllData(false);
+        this.autoRefreshInterval = setInterval(async () => {
+            // Only auto refresh if not currently loading
+            if (!this.state.isLoading) {
+                await this.performRefresh(false); // Auto refresh
+            } else {
+                console.log('Skipping auto refresh - manual refresh in progress');
+            }
         }, refreshInterval);
         
         console.log('Auto refresh enabled - every 5 minutes');
@@ -393,13 +448,14 @@ export class App {
     }
 
     async loadAllData(forceRefresh = false) {
-        const isBackground = !this.state.isFirstLoad && !forceRefresh && !this.state.isManualRefresh;
+        const isBackground = !this.state.isFirstLoad && !forceRefresh && !this.state.isManualRefresh && this.state.isAutoRefresh;
         
         // Only show loading screen for first load
         if (this.state.isFirstLoad) {
             this.ui.showLoading('Loading data for the first time...');
         }
         
+        // Set loading flag to prevent concurrent refreshes
         this.state.isLoading = true;
         
         try {
@@ -454,8 +510,8 @@ export class App {
             this.displayContent();
             
             // Log completion
-            if (isBackground) {
-                console.log('✓ Background update completed silently');
+            if (isBackground || this.state.isAutoRefresh) {
+                console.log('✓ Auto refresh completed silently');
             } else {
                 console.log('✓ Data refresh completed');
             }
@@ -824,51 +880,51 @@ export class App {
     }
 
     logout() {
-    // Clear intervals
-    if (this.autoRefreshInterval) {
-        clearInterval(this.autoRefreshInterval);
-        this.autoRefreshInterval = null;
+        // Clear intervals
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+            this.autoRefreshInterval = null;
+        }
+        
+        if (this.tokenCheckInterval) {
+            clearInterval(this.tokenCheckInterval);
+            this.tokenCheckInterval = null;
+        }
+        
+        // Unsubscribe from token updates
+        if (this.tokenManager && this.tokenManager.unsubscribe) {
+            this.tokenManager.unsubscribe();
+        }
+        
+        // Clear state
+        this.state.authToken = null;
+        this.state.tokenStatus = 'checking';
+        this.state.isFirstLoad = true;
+        this.api = null;
+        
+        // Clear local storage
+        localStorage.removeItem('wse_auth_token');
+        localStorage.removeItem('wse_center_name');
+        
+        // Hide main app and show login
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        
+        // Clear token field to allow manual entry
+        const tokenField = document.getElementById('authToken');
+        if (tokenField) {
+            tokenField.value = '';
+            tokenField.placeholder = 'Enter token manually or wait for automatic update...';
+        }
+        
+        // Remove any existing status messages
+        const statusMsg = document.querySelector('.token-status-message');
+        if (statusMsg) {
+            statusMsg.remove();
+        }
+        
+        console.log('Logged out successfully');
     }
-    
-    if (this.tokenCheckInterval) {
-        clearInterval(this.tokenCheckInterval);
-        this.tokenCheckInterval = null;
-    }
-    
-    // Unsubscribe from token updates
-    if (this.tokenManager && this.tokenManager.unsubscribe) {
-        this.tokenManager.unsubscribe();
-    }
-    
-    // Clear state
-    this.state.authToken = null;
-    this.state.tokenStatus = 'checking';
-    this.state.isFirstLoad = true;
-    this.api = null;
-    
-    // Clear local storage
-    localStorage.removeItem('wse_auth_token');
-    localStorage.removeItem('wse_center_name');
-    
-    // Hide main app and show login
-    document.getElementById('appContainer').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
-    
-    // Clear token field to allow manual entry
-    const tokenField = document.getElementById('authToken');
-    if (tokenField) {
-        tokenField.value = '';
-        tokenField.placeholder = 'Enter token manually or wait for automatic update...';
-    }
-    
-    // Remove any existing status messages
-    const statusMsg = document.querySelector('.token-status-message');
-    if (statusMsg) {
-        statusMsg.remove();
-    }
-    
-    console.log('Logged out successfully');
-}
 }
 
 // Global function
