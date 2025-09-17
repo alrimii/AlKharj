@@ -90,6 +90,30 @@
         .btn-secondary i {
             font-size: 0.875rem;
         }
+        
+        /* Sync status indicator */
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.875rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+        
+        .sync-status.connected {
+            color: #10b981;
+        }
+        
+        .sync-status.syncing {
+            color: #f59e0b;
+        }
+        
+        .sync-status.disconnected {
+            color: #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -164,6 +188,7 @@
                             <i class="fas fa-building"></i>
                             <span id="centerDisplay">Loading...</span>
                         </div>
+                        <!-- Sync status indicator will be inserted here -->
                         <!-- Token status indicator will be inserted here -->
                         <button id="refreshBtn" 
                                 class="refresh-btn" 
@@ -233,8 +258,9 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs with Auth -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 
     <!-- Load JavaScript Modules -->
@@ -313,10 +339,10 @@
             });
             
             // Add version info to console
-            console.log('%c WSE Tracker v2.0 ', 
+            console.log('%c WSE Tracker v2.1 ', 
                 'background: #5b4cfd; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;'
             );
-            console.log('Features: Auto-token update, Firebase caching, Real-time sync');
+            console.log('Features: Auto-token update, Firebase caching, Real-time sync, Coordinated refresh');
             console.log('Press Ctrl+Shift+D for token debug info');
         });
     </script>
