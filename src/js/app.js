@@ -1028,7 +1028,8 @@ export class App {
                                 CONFIG.RED_FLAG_PROFILES
                             );
                             
-                            if (processed) {
+                            // ONLY add students who have self-booking
+                            if (processed && processed.hasSelfBooking) {
                                 processedStudents.push(processed);
                             }
                         } catch (error) {
@@ -1043,13 +1044,13 @@ export class App {
                 }
             }
             
-            // Sort the results
+            // Sort the results - red flag profiles at bottom
             this.state.data.self = processedStudents.sort((a, b) => {
-                // Sort highlighted profiles to the bottom
+                // First sort highlighted profiles to the bottom
                 if (a.isHighlighted !== b.isHighlighted) {
                     return a.isHighlighted ? 1 : -1;
                 }
-                // Then sort by name
+                // Then sort by name alphabetically
                 return a.name.localeCompare(b.name);
             });
             

@@ -1,4 +1,4 @@
-// api.js - Updated with TokenManager integration
+// api.js - Updated with correct contract API URL
 // Path: /src/js/api.js
 
 import { CONFIG } from '../config/config.js';
@@ -157,12 +157,13 @@ export class API {
         return data?.lessonsSummaries || [];
     }
 
-    // Contract API methods
+    // Contract API methods - FIXED URL
     async fetchContracts() {
         try {
             console.log('Fetching contracts from API...');
             
-            const url = `${CONFIG.CONTRACT_API_URL}/contracts`;
+            // Using the CORRECT API URL
+            const url = `${CONFIG.NEW_CONTRACT_API_URL}/contracts`;
             const allContracts = [];
             let offset = 0;
             const count = 50;
@@ -315,7 +316,8 @@ export class API {
         if (!studentId) return null;
         
         try {
-            const url = `${CONFIG.CONTRACT_API_URL}/students/${studentId}/contracts`;
+            // Using the CORRECT API URL
+            const url = `${CONFIG.NEW_CONTRACT_API_URL}/students/${studentId}/contracts`;
             const fullUrl = `${url}?centerId=${CONFIG.CENTER_ID}`;
             
             const data = await this.makeContractRequest(fullUrl);
