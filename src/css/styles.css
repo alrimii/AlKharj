@@ -440,9 +440,29 @@ body {
     box-shadow: 0 4px 12px rgba(91, 76, 253, 0.2);
 }
 
+.refresh-btn.waiting {
+    background: #fef3c7 !important;
+    border-color: #fbbf24 !important;
+    color: #92400e !important;
+    cursor: wait !important;
+}
+
+.refresh-btn.waiting:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 .refresh-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.6;
     cursor: not-allowed;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.refresh-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+    background: #f3f4f6;
 }
 
 .refresh-btn i {

@@ -1,4 +1,4 @@
-// app.js - Simplified version without auto-refresh
+// app.js - Final version with sync locks and unified timestamps
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -247,8 +247,49 @@ export class App {
         }
 
         const refreshBtn = document.getElementById('refreshBtn');
+        const db = firebase.firestore();
         
         try {
+            // Check if another device is updating
+            const syncDoc = await db.collection('sync').doc('status').get();
+            if (syncDoc.exists) {
+                const data = syncDoc.data();
+                
+                // If another device is updating
+                if (data.isUpdating && data.updatedBy !== this.getDeviceId()) {
+                    const updateStarted = data.updateStartedAt?.toDate ? 
+                        data.updateStartedAt.toDate() : null;
+                    
+                    if (updateStarted) {
+                        const timeSinceStart = Date.now() - updateStarted.getTime();
+                        // If update started less than 30 seconds ago
+                        if (timeSinceStart < 30000) {
+                            this.ui.showToast('Another device is updating. Please wait...', 'warning');
+                            
+                            // Disable refresh button temporarily
+                            if (refreshBtn) {
+                                refreshBtn.disabled = true;
+                                refreshBtn.innerHTML = '<i class="fas fa-hourglass-half"></i>';
+                                refreshBtn.title = 'Waiting for other device...';
+                            }
+                            
+                            // Wait and check again after 3 seconds
+                            setTimeout(() => {
+                                if (!this.state.isLoading) {
+                                    if (refreshBtn) {
+                                        refreshBtn.disabled = false;
+                                        refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                                        refreshBtn.title = 'Refresh data from server';
+                                    }
+                                }
+                            }, 3000);
+                            
+                            return;
+                        }
+                    }
+                }
+            }
+            
             this.state.isLoading = true;
             this.state.isManualRefresh = isManual;
 
@@ -263,8 +304,7 @@ export class App {
                 this.ui.showToast('Refreshing data...', 'info');
             }
 
-            // Update sync status in Firebase
-            const db = firebase.firestore();
+            // Lock the update for this device
             await db.collection('sync').doc('status').set({
                 isUpdating: true,
                 updatedBy: this.getDeviceId(),
@@ -287,12 +327,22 @@ export class App {
                 message: 'Update completed successfully'
             }, { merge: true });
 
+            // Update time from Firebase
+            await this.updateLastUpdateTime();
+
             if (isManual) {
                 this.ui.showToast('✅ Data refreshed successfully', 'success');
             }
 
         } catch (error) {
             console.error('Refresh failed:', error);
+            
+            // Release lock on failure
+            await db.collection('sync').doc('status').set({
+                isUpdating: false,
+                lastError: error.message,
+                errorTime: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
             
             if (isManual) {
                 this.ui.showToast('Failed to refresh: ' + error.message, 'error');
@@ -305,6 +355,7 @@ export class App {
                 refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
                 refreshBtn.disabled = false;
                 refreshBtn.classList.remove('refreshing');
+                refreshBtn.title = 'Refresh data from server';
             }
         }
     }
@@ -369,7 +420,10 @@ export class App {
             this.ui.generateDateTabs(this.state.currentMode, this.state.data);
             this.selectInitialDate();
             this.displayContent();
-            this.updateLastUpdateTime();
+            
+            // Update time from Firebase instead of local time
+            await this.updateLastUpdateTime();
+            
             this.updateSyncIndicator('connected');
             
             // Check data age for notification only
@@ -456,25 +510,87 @@ export class App {
                     console.log('📊 Real-time data update received');
                     this.ui.updateDateTabs(this.state.data);
                     this.displayContent();
+                    
+                    // Update time from Firebase
                     this.updateLastUpdateTime();
+                    
                     this.ui.showToast('Data updated', 'info');
                 }
             }, (error) => {
                 console.error('Error in Firebase listener:', error);
             });
         
-        // Listen to sync status
+        // Listen to sync status - Enhanced version
         this.unsubscribeSync = db.collection('sync').doc('status')
             .onSnapshot((doc) => {
-                if (doc.exists && !this.state.isFirstLoad) {
+                if (doc.exists) {
                     const data = doc.data();
-                    if (data.isUpdating) {
+                    const refreshBtn = document.getElementById('refreshBtn');
+                    
+                    // Update time on any change
+                    if (data.lastUpdateTime && !this.state.isFirstLoad) {
+                        this.updateLastUpdateTime();
+                    }
+                    
+                    // Control refresh button based on update status
+                    if (data.isUpdating && data.updatedBy !== this.getDeviceId()) {
+                        // Another device is updating
+                        this.updateSyncIndicator('syncing');
+                        
+                        if (refreshBtn && !this.state.isLoading) {
+                            refreshBtn.disabled = true;
+                            refreshBtn.title = 'Another device is updating...';
+                            refreshBtn.innerHTML = '<i class="fas fa-hourglass-half"></i>';
+                            refreshBtn.classList.add('waiting');
+                        }
+                    } else if (data.isUpdating && data.updatedBy === this.getDeviceId()) {
+                        // This device is updating
                         this.updateSyncIndicator('syncing');
                     } else {
+                        // No update in progress
                         this.updateSyncIndicator('connected');
+                        
+                        if (refreshBtn && !this.state.isLoading) {
+                            refreshBtn.disabled = false;
+                            refreshBtn.title = 'Refresh data from server';
+                            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                            refreshBtn.classList.remove('waiting');
+                        }
                     }
                 }
             });
+    }
+
+    async updateLastUpdateTime() {
+        try {
+            // Get last update time from Firebase
+            const db = firebase.firestore();
+            const syncDoc = await db.collection('sync').doc('status').get();
+            
+            if (syncDoc.exists) {
+                const data = syncDoc.data();
+                const lastUpdate = data.lastUpdateTime?.toDate ? 
+                    data.lastUpdateTime.toDate() : null;
+                
+                if (lastUpdate) {
+                    this.state.lastUpdate = lastUpdate;
+                    const timeElement = document.getElementById('updateTime');
+                    if (timeElement) {
+                        timeElement.textContent = lastUpdate.toLocaleTimeString();
+                    }
+                    return;
+                }
+            }
+        } catch (error) {
+            console.error('Error getting sync time:', error);
+        }
+        
+        // Fallback to local time if Firebase fails
+        this.state.lastUpdate = new Date();
+        const timeElement = document.getElementById('updateTime');
+        if (timeElement) {
+            timeElement.textContent = this.state.lastUpdate.toLocaleTimeString();
+        }
     }
 
     updateSyncIndicator(status) {
@@ -610,7 +726,7 @@ export class App {
             await this.saveCompleteDataToFirebase();
             
             // Update UI
-            this.updateLastUpdateTime();
+            await this.updateLastUpdateTime();
             
             // Update tabs without losing current selection
             const currentDate = this.state.currentDate;
@@ -982,14 +1098,6 @@ export class App {
         );
         
         this.ui.displayContent(this.state.currentMode, processedData);
-    }
-
-    updateLastUpdateTime() {
-        this.state.lastUpdate = new Date();
-        const timeElement = document.getElementById('updateTime');
-        if (timeElement) {
-            timeElement.textContent = this.state.lastUpdate.toLocaleTimeString();
-        }
     }
 
     logout() {
