@@ -1,9 +1,8 @@
-// config.js - Path: /src/config/config.js
+// config.js - المسار: /src/config/config.js
 
 export const CONFIG = {
     API_BASE_URL: 'https://world.wallstreetenglish.com/api',
-    CONTRACT_API_URL: 'https://contractapi.wallstreetenglish.com', // Old URL - kept for reference
-    NEW_CONTRACT_API_URL: 'https://api.wallstreetenglish.com/contractapi', // NEW CORRECT URL
+    CONTRACT_API_URL: 'https://contractapi.wallstreetenglish.com', // عودة إلى URL الأصلي
     CENTER_ID: '0403a03c-0ea3-4185-8ace-d27e3b70e1e3',
     
     DAYS_TO_FETCH_AHEAD: 5,
