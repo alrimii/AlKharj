@@ -4,6 +4,7 @@ import time
 import datetime
 import re
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -25,13 +26,13 @@ def extract_token():
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
+        
+        # GitHub Actions specific
+        chrome_options.binary_location = "/usr/bin/google-chrome"
         
         print("... Setting up Chrome driver")
-        # Use Chrome directly without webdriver-manager
-        driver = webdriver.Chrome(options=chrome_options)
+        service = Service()
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
         
         # Navigate to login page
@@ -113,8 +114,11 @@ def extract_token():
         
     finally:
         if driver:
-            driver.quit()
-            print("🔒 Browser closed")
+            try:
+                driver.quit()
+                print("🔒 Browser closed")
+            except:
+                pass
 
 if __name__ == "__main__":
     success = extract_token()
