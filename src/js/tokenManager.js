@@ -208,8 +208,8 @@ export class TokenManager {
                 
                 // Calculate age
                 const ageInHours = lastUpdate ? 
-                    (now - lastUpdate) / (1000 * 60 * 60) : 
-                    999; // Very old if no update time
+                    Math.floor((now - lastUpdate) / (1000 * 60 * 60)) : 
+                    999;
                 
                 // Check expiry
                 const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : null;
