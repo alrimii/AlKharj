@@ -1,4 +1,4 @@
-// app.js - Updated with TokenManager for automatic token handling
+// app.js - النسخة النهائية مع جميع الإصلاحات
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -33,7 +33,7 @@ export class App {
             isFirstLoad: true,
             loadingProgress: 0,
             isManualRefresh: false,
-            tokenStatus: 'checking' // 'checking', 'valid', 'expired', 'missing'
+            tokenStatus: 'checking'
         };
 
         this.autoRefreshInterval = null;
@@ -93,6 +93,12 @@ export class App {
         const loginScreen = document.getElementById('loginScreen');
         const tokenField = document.getElementById('authToken');
         
+        // Remove any existing status message
+        const existingStatus = document.querySelector('.token-status-message');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+        
         // Add status message
         const statusDiv = document.createElement('div');
         statusDiv.className = 'token-status-message';
@@ -131,7 +137,7 @@ export class App {
                     this.checkAndInitializeToken();
                 }, 3000);
             } else {
-                this.ui.showToast('Failed to trigger update. Please try manual entry.', 'error');
+                this.ui.showToast('Manual update not available. Use GitHub Actions.', 'error');
                 this.ui.showLoginScreen();
             }
         } catch (error) {
@@ -158,14 +164,13 @@ export class App {
             }
         });
         
-        // Check token validity every hour
+        // Check token validity every 30 minutes
         this.tokenCheckInterval = setInterval(async () => {
             try {
                 const tokenStatus = await this.tokenManager.checkTokenValidity();
                 
-                if (tokenStatus.expired) {
-                    console.warn('Token expired, requesting update...');
-                    await this.tokenManager.requestTokenUpdate();
+                if (tokenStatus.expired && tokenStatus.ageInHours > 10) {
+                    console.warn('Token expired, may need manual update');
                 }
                 
                 // Update UI with token status
@@ -174,7 +179,12 @@ export class App {
             } catch (error) {
                 console.error('Token check failed:', error);
             }
-        }, 60 * 60 * 1000); // Every hour
+        }, 30 * 60 * 1000); // Every 30 minutes
+        
+        // Initial status update
+        this.tokenManager.checkTokenValidity().then(status => {
+            this.updateTokenStatusDisplay(status);
+        });
     }
 
     updateTokenStatusDisplay(status) {
@@ -269,11 +279,6 @@ export class App {
             localStorage.setItem('wse_auth_token', token);
             localStorage.setItem('wse_center_name', centerName);
             
-            // Optionally save to Firebase for persistence
-            if (this.tokenManager.canSaveToken()) {
-                await this.tokenManager.saveManualToken(token);
-            }
-            
             await this.startApp();
         } catch (error) {
             console.error('Login failed:', error);
@@ -333,11 +338,6 @@ export class App {
         // Insert before refresh button
         const refreshBtn = document.getElementById('refreshBtn');
         headerRight.insertBefore(statusDiv, refreshBtn);
-        
-        // Initial status update
-        this.tokenManager.checkTokenValidity().then(status => {
-            this.updateTokenStatusDisplay(status);
-        });
     }
 
     setupAutoRefresh() {
@@ -824,18 +824,51 @@ export class App {
     }
 
     logout() {
-        if (this.autoRefreshInterval) {
-            clearInterval(this.autoRefreshInterval);
-        }
-        
-        if (this.tokenCheckInterval) {
-            clearInterval(this.tokenCheckInterval);
-        }
-        
-        localStorage.removeItem('wse_auth_token');
-        localStorage.removeItem('wse_center_name');
-        location.reload();
+    // Clear intervals
+    if (this.autoRefreshInterval) {
+        clearInterval(this.autoRefreshInterval);
+        this.autoRefreshInterval = null;
     }
+    
+    if (this.tokenCheckInterval) {
+        clearInterval(this.tokenCheckInterval);
+        this.tokenCheckInterval = null;
+    }
+    
+    // Unsubscribe from token updates
+    if (this.tokenManager && this.tokenManager.unsubscribe) {
+        this.tokenManager.unsubscribe();
+    }
+    
+    // Clear state
+    this.state.authToken = null;
+    this.state.tokenStatus = 'checking';
+    this.state.isFirstLoad = true;
+    this.api = null;
+    
+    // Clear local storage
+    localStorage.removeItem('wse_auth_token');
+    localStorage.removeItem('wse_center_name');
+    
+    // Hide main app and show login
+    document.getElementById('appContainer').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    
+    // Clear token field to allow manual entry
+    const tokenField = document.getElementById('authToken');
+    if (tokenField) {
+        tokenField.value = '';
+        tokenField.placeholder = 'Enter token manually or wait for automatic update...';
+    }
+    
+    // Remove any existing status messages
+    const statusMsg = document.querySelector('.token-status-message');
+    if (statusMsg) {
+        statusMsg.remove();
+    }
+    
+    console.log('Logged out successfully');
+}
 }
 
 // Global function
