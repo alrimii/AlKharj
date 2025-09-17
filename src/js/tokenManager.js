@@ -1,4 +1,4 @@
-// tokenManager.js - إدارة التوكن من Firebase
+// tokenManager.js - Fixed Firebase authentication integration
 // Path: /src/js/tokenManager.js
 
 import { CONFIG } from '../config/config.js';
@@ -10,6 +10,7 @@ export class TokenManager {
         this.db = null;
         this.unsubscribe = null;
         this.initialized = false;
+        this.authInitialized = false;
     }
 
     async initialize() {
@@ -21,6 +22,9 @@ export class TokenManager {
                 firebase.initializeApp(CONFIG.FIREBASE_CONFIG);
             }
             
+            // Wait for auth to be ready
+            await this.initializeAuth();
+            
             this.db = firebase.firestore();
             this.initialized = true;
             console.log('TokenManager initialized successfully');
@@ -31,6 +35,41 @@ export class TokenManager {
         }
     }
 
+    async initializeAuth() {
+        if (this.authInitialized) return;
+        
+        return new Promise((resolve, reject) => {
+            // Check if already authenticated
+            if (firebase.auth().currentUser) {
+                this.authInitialized = true;
+                resolve();
+                return;
+            }
+
+            // Wait for auth state change or sign in anonymously
+            const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+                unsubscribe(); // Remove listener
+                
+                if (user) {
+                    this.authInitialized = true;
+                    console.log('TokenManager: Auth ready');
+                    resolve();
+                } else {
+                    try {
+                        await firebase.auth().signInAnonymously();
+                        this.authInitialized = true;
+                        console.log('TokenManager: Anonymous auth successful');
+                        resolve();
+                    } catch (error) {
+                        console.error('TokenManager: Auth failed', error);
+                        this.authInitialized = false;
+                        reject(error);
+                    }
+                }
+            });
+        });
+    }
+
     async getToken() {
         // Check cached token first
         if (this.token && this.tokenExpiry && new Date() < this.tokenExpiry) {
@@ -38,9 +77,13 @@ export class TokenManager {
         }
 
         try {
-            // Ensure initialized
+            // Ensure initialized and authenticated
             if (!this.initialized) {
                 await this.initialize();
+            }
+
+            if (!this.authInitialized) {
+                await this.initializeAuth();
             }
 
             // Get token from Firebase
@@ -197,6 +240,10 @@ export class TokenManager {
                 await this.initialize();
             }
 
+            if (!this.authInitialized) {
+                await this.initializeAuth();
+            }
+
             const doc = await this.db.collection('config').doc('wseToken').get();
             
             if (doc.exists) {
@@ -209,7 +256,7 @@ export class TokenManager {
                 // Calculate age
                 const ageInHours = lastUpdate ? 
                     Math.floor((now - lastUpdate) / (1000 * 60 * 60)) : 
-                    999;
+                    999; // Very old if no update time
                 
                 // Check expiry
                 const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : null;
@@ -244,13 +291,10 @@ export class TokenManager {
     }
 
     canSaveToken() {
-        // Only allow saving if user is admin (you can implement your own logic)
-        // For security, we generally don't want to allow saving tokens from the frontend
         return false;
     }
 
     async saveManualToken(token) {
-        // Save to localStorage only (not to Firebase for security)
         if (!token || !token.startsWith('eyJ')) {
             console.error('Invalid token format');
             return false;
@@ -273,13 +317,11 @@ export class TokenManager {
     }
 
     clearToken() {
-        // Clear all token data
         this.token = null;
         this.tokenExpiry = null;
         localStorage.removeItem('wse_auth_token');
         localStorage.removeItem('wse_token_saved_at');
         
-        // Unsubscribe from updates
         if (this.unsubscribe) {
             this.unsubscribe();
             this.unsubscribe = null;
@@ -289,7 +331,6 @@ export class TokenManager {
     }
 
     async getTokenInfo() {
-        // Get detailed token information for debugging
         const validity = await this.checkTokenValidity();
         const localToken = localStorage.getItem('wse_auth_token');
         const localSavedAt = localStorage.getItem('wse_token_saved_at');
@@ -303,7 +344,8 @@ export class TokenManager {
             firebaseValidity: validity,
             currentToken: this.token ? this.token.substring(0, 20) + '...' : null,
             tokenExpiry: this.tokenExpiry,
-            initialized: this.initialized
+            initialized: this.initialized,
+            authInitialized: this.authInitialized
         };
     }
 }
