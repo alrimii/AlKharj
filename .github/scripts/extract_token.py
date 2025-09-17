@@ -4,12 +4,10 @@ import time
 import datetime
 import re
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -22,19 +20,19 @@ def extract_token():
         
         # Setup Chrome options
         chrome_options = Options()
-        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
         
         print("... Setting up Chrome driver")
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=chrome_options
-        )
-        driver.set_page_load_timeout(25)
+        # Use Chrome directly without webdriver-manager
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.set_page_load_timeout(30)
         
         # Navigate to login page
         login_url = "https://world.wallstreetenglish.com/learn/login"
@@ -51,7 +49,9 @@ def extract_token():
         password_field = wait.until(EC.presence_of_element_located((By.NAME, "password")))
         
         print("... Entering credentials")
+        username_field.clear()
         username_field.send_keys(os.environ['WSE_USERNAME'])
+        password_field.clear()
         password_field.send_keys(os.environ['WSE_PASSWORD'])
         
         print("... Finding 'Log in' button")
