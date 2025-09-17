@@ -1,4 +1,4 @@
-// app.js - Final version with sync locks and unified timestamps
+// app.js - Updated with Self-booking feature and real-time sync fixes
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -39,6 +39,7 @@ export class App {
         this.tokenCheckInterval = null;
         this.unsubscribeSchedules = null;
         this.unsubscribeSync = null;
+        this.unsubscribeSelfBooking = null;
         this.init();
     }
 
@@ -520,16 +521,48 @@ export class App {
                 console.error('Error in Firebase listener:', error);
             });
         
-        // Listen to sync status - Enhanced version
+        // NEW: Listen to self-booking updates
+        this.unsubscribeSelfBooking = db.collection('selfBooking').doc('latest')
+            .onSnapshot((doc) => {
+                if (doc.exists && !this.state.isFirstLoad) {
+                    const data = doc.data();
+                    const parsedData = JSON.parse(data.data);
+                    this.state.data.self = parsedData;
+                    
+                    // If currently viewing self-booking, update display
+                    if (this.state.currentMode === 'self') {
+                        console.log('📊 Real-time self-booking update received');
+                        this.displayContent();
+                        this.ui.showToast('Self-booking data updated', 'info');
+                    }
+                }
+            }, (error) => {
+                console.error('Error in self-booking listener:', error);
+            });
+        
+        // FIXED: Listen to sync status - Enhanced version with real-time time updates
         this.unsubscribeSync = db.collection('sync').doc('status')
             .onSnapshot((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
                     const refreshBtn = document.getElementById('refreshBtn');
                     
-                    // Update time on any change
-                    if (data.lastUpdateTime && !this.state.isFirstLoad) {
-                        this.updateLastUpdateTime();
+                    // FIXED: Always update time when sync status changes
+                    if (data.lastUpdateTime) {
+                        const lastUpdate = data.lastUpdateTime.toDate ? 
+                            data.lastUpdateTime.toDate() : new Date(data.lastUpdateTime);
+                        
+                        // Update the displayed time immediately
+                        const timeElement = document.getElementById('updateTime');
+                        if (timeElement) {
+                            timeElement.textContent = lastUpdate.toLocaleTimeString();
+                        }
+                        this.state.lastUpdate = lastUpdate;
+                        
+                        // Show toast only for actual data updates (not on first load)
+                        if (!this.state.isFirstLoad && data.updatedBy && data.updatedBy !== this.getDeviceId()) {
+                            this.ui.showToast(`Data updated by another device`, 'info');
+                        }
                     }
                     
                     // Control refresh button based on update status
@@ -721,8 +754,14 @@ export class App {
             console.log('Step 4: Updating lesson progress...');
             await this.processAllLessonSummaries();
             
-            // Step 5: Save everything to Firebase
-            console.log('Step 5: Saving to Firebase...');
+            // Step 5: Load self-booking data if needed
+            if (this.state.isManualRefresh || !this.state.data.self.length) {
+                console.log('Step 5: Loading self-booking data...');
+                await this.loadSelfBookingData();
+            }
+            
+            // Step 6: Save everything to Firebase
+            console.log('Step 6: Saving to Firebase...');
             await this.saveCompleteDataToFirebase();
             
             // Update UI
@@ -958,6 +997,70 @@ export class App {
         console.log(`Processed ${processed} lesson summaries`);
     }
 
+    async loadSelfBookingData() {
+        try {
+            // Try cache first
+            const cachedData = await this.firebase.getSelfBookingData();
+            if (cachedData && !this.state.isManualRefresh) {
+                this.state.data.self = cachedData;
+                return;
+            }
+            
+            // Fetch fresh data
+            console.log('Fetching self-booking data...');
+            const contracts = await this.api.fetchContracts();
+            const processedStudents = [];
+            
+            // Process in batches for better performance
+            const batchSize = 10;
+            for (let i = 0; i < contracts.length; i += batchSize) {
+                const batch = contracts.slice(i, i + batchSize);
+                
+                await Promise.all(
+                    batch.map(async (contract) => {
+                        if (!contract.studentId) return;
+                        
+                        try {
+                            const contractDetails = await this.api.fetchStudentContractDetails(contract.studentId);
+                            const processed = this.dataProcessor.processSelfBookingStudent(
+                                contract,
+                                contractDetails,
+                                CONFIG.RED_FLAG_PROFILES
+                            );
+                            
+                            if (processed) {
+                                processedStudents.push(processed);
+                            }
+                        } catch (error) {
+                            console.error(`Failed to process contract for ${contract.studentId}:`, error);
+                        }
+                    })
+                );
+                
+                // Update progress
+                if (i % 50 === 0) {
+                    console.log(`Processed ${Math.min(i + batchSize, contracts.length)}/${contracts.length} contracts`);
+                }
+            }
+            
+            // Sort the results
+            this.state.data.self = processedStudents.sort((a, b) => {
+                // Sort highlighted profiles to the bottom
+                if (a.isHighlighted !== b.isHighlighted) {
+                    return a.isHighlighted ? 1 : -1;
+                }
+                // Then sort by name
+                return a.name.localeCompare(b.name);
+            });
+            
+            console.log(`Found ${this.state.data.self.length} students with self-booking`);
+            
+        } catch (error) {
+            console.error('Error loading self-booking:', error);
+            this.state.data.self = [];
+        }
+    }
+
     async saveCompleteDataToFirebase() {
         try {
             // Save all schedules with embedded lesson data
@@ -971,7 +1074,7 @@ export class App {
                 await this.firebase.saveLevelSummaries(this.state.levelSummaries);
             }
             
-            // Save self-booking if exists
+            // Save self-booking data
             if (this.state.data.self.length > 0) {
                 await this.firebase.saveSelfBookingData(this.state.data.self);
             }
@@ -1017,6 +1120,11 @@ export class App {
     }
 
     selectInitialDate() {
+        if (this.state.currentMode === 'self') {
+            // Self-booking doesn't need date selection
+            return;
+        }
+        
         const dates = Object.keys(this.state.data[this.state.currentMode] || {}).sort();
         const today = this.dataProcessor.getTodayString();
         this.state.currentDate = dates.includes(today) ? today : dates[0];
@@ -1031,57 +1139,15 @@ export class App {
         if (mode === 'self' && this.state.data.self.length === 0) {
             this.ui.showLoading('Loading self-booking data...');
             await this.loadSelfBookingData();
+            // Save to Firebase after loading
+            if (this.state.data.self.length > 0) {
+                await this.firebase.saveSelfBookingData(this.state.data.self);
+            }
         }
         
         this.ui.generateDateTabs(mode, this.state.data);
         this.selectInitialDate();
         this.displayContent();
-    }
-
-    async loadSelfBookingData() {
-        try {
-            // Try cache first
-            const cachedData = await this.firebase.getSelfBookingData();
-            if (cachedData && !this.state.isManualRefresh) {
-                this.state.data.self = cachedData;
-                this.displayContent();
-                return;
-            }
-            
-            // Fetch fresh
-            const contracts = await this.api.fetchContracts();
-            const processedStudents = [];
-            
-            for (const contract of contracts) {
-                if (!contract.studentId) continue;
-                
-                const contractDetails = await this.api.fetchStudentContractDetails(contract.studentId);
-                const processed = this.dataProcessor.processSelfBookingStudent(
-                    contract,
-                    contractDetails,
-                    CONFIG.RED_FLAG_PROFILES
-                );
-                
-                if (processed && processed.hasSelfBooking) {
-                    processedStudents.push(processed);
-                }
-            }
-            
-            this.state.data.self = processedStudents.sort((a, b) => {
-                if (a.isHighlighted !== b.isHighlighted) {
-                    return a.isHighlighted ? 1 : -1;
-                }
-                return a.name.localeCompare(b.name);
-            });
-            
-            await this.firebase.saveSelfBookingData(this.state.data.self);
-            
-        } catch (error) {
-            console.error('Error loading self-booking:', error);
-            this.state.data.self = [];
-        } finally {
-            this.displayContent();
-        }
     }
 
     selectDate(date) {
@@ -1107,6 +1173,9 @@ export class App {
         }
         if (this.unsubscribeSync) {
             this.unsubscribeSync();
+        }
+        if (this.unsubscribeSelfBooking) {
+            this.unsubscribeSelfBooking();
         }
         
         // Clear intervals
