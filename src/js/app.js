@@ -1,4 +1,4 @@
-// app.js - Updated with new realtime sync system
+// app.js - Simplified version without auto-refresh
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -6,7 +6,6 @@ import { DataProcessor } from './data.js';
 import { UI } from './ui.js';
 import { FirebaseService } from './firebase-service.js';
 import { TokenManager } from './tokenManager.js';
-import { RealtimeSync } from './realtimeSync.js'; // النظام الجديد
 import { CONFIG } from '../config/config.js';
 
 export class App {
@@ -16,7 +15,6 @@ export class App {
         this.ui = new UI();
         this.firebase = new FirebaseService();
         this.tokenManager = new TokenManager();
-        this.realtimeSync = null; // نظام المزامنة الجديد
         
         this.state = {
             authToken: null,
@@ -35,12 +33,12 @@ export class App {
             isFirstLoad: true,
             loadingProgress: 0,
             isManualRefresh: false,
-            tokenStatus: 'checking',
-            activeDevices: 0
+            tokenStatus: 'checking'
         };
 
-        this.autoUpdateCheckInterval = null;
         this.tokenCheckInterval = null;
+        this.unsubscribeSchedules = null;
+        this.unsubscribeSync = null;
         this.init();
     }
 
@@ -51,148 +49,10 @@ export class App {
         await this.firebase.initialize();
         await this.tokenManager.initialize();
         
-        // Initialize realtime sync
-        this.realtimeSync = new RealtimeSync(firebase);
-        await this.realtimeSync.initialize();
-        
         this.setupEventListeners();
-        this.setupRealtimeListeners();
         
         // Check for token availability
         await this.checkAndInitializeToken();
-    }
-
-    setupRealtimeListeners() {
-        // الاستماع لتحديثات البيانات
-        this.realtimeSync.on('data_updated', async (data) => {
-            console.log('📊 Data updated from server');
-            
-            // إعادة تحميل البيانات من Firebase
-            if (!this.state.isLoading) {
-                await this.loadFromFirebase();
-                this.ui.generateDateTabs(this.state.currentMode, this.state.data);
-                this.displayContent();
-                this.updateLastUpdateTime();
-                
-                // إظهار إشعار
-                if (!this.state.isFirstLoad) {
-                    this.ui.showToast('Data updated from server', 'info');
-                }
-            }
-        });
-
-        // الاستماع لبداية التحديث
-        this.realtimeSync.on('update_started', (data) => {
-            console.log('🔄 Server update started');
-            this.updateSyncIndicator('syncing');
-        });
-
-        // الاستماع لاكتمال التحديث
-        this.realtimeSync.on('update_completed', (data) => {
-            console.log('✅ Server update completed');
-            this.updateSyncIndicator('connected');
-        });
-
-        // الاستماع لتحديثات الأجهزة
-        this.realtimeSync.on('devices_updated', (devices) => {
-            this.state.activeDevices = devices.length;
-            this.updateDevicesIndicator(devices.length);
-        });
-
-        // الاستماع لتحديثات الجداول المباشرة
-        this.realtimeSync.on('schedules_updated', async (changes) => {
-            console.log(`📅 ${changes.length} schedule changes detected`);
-            
-            // تحديث البيانات المحلية
-            for (const change of changes) {
-                const data = change.doc.data();
-                const parsedData = JSON.parse(data.data);
-                
-                if (data.mode === 'encounter') {
-                    this.state.data.encounter[data.date] = parsedData;
-                } else if (data.mode === 'cc') {
-                    this.state.data.cc[data.date] = parsedData;
-                }
-            }
-            
-            // تحديث العرض
-            this.ui.updateDateTabs(this.state.data);
-            this.displayContent();
-        });
-    }
-
-    updateSyncIndicator(status) {
-        // إضافة مؤشر حالة المزامنة
-        const headerRight = document.querySelector('.header-right');
-        if (!headerRight) return;
-        
-        let syncIndicator = document.getElementById('syncIndicator');
-        if (!syncIndicator) {
-            syncIndicator = document.createElement('div');
-            syncIndicator.id = 'syncIndicator';
-            syncIndicator.className = 'sync-status';
-            
-            const refreshBtn = document.getElementById('refreshBtn');
-            headerRight.insertBefore(syncIndicator, refreshBtn);
-        }
-        
-        syncIndicator.className = `sync-status ${status}`;
-        
-        let icon, text;
-        switch(status) {
-            case 'connected':
-                icon = '🟢';
-                text = 'Synced';
-                break;
-            case 'syncing':
-                icon = '🔄';
-                text = 'Syncing...';
-                break;
-            case 'disconnected':
-                icon = '🔴';
-                text = 'Offline';
-                break;
-            default:
-                icon = '⚪';
-                text = 'Unknown';
-        }
-        
-        syncIndicator.innerHTML = `${icon} <span>${text}</span>`;
-    }
-
-    updateDevicesIndicator(count) {
-        // إضافة مؤشر عدد الأجهزة المتصلة
-        let devicesIndicator = document.getElementById('devicesIndicator');
-        if (!devicesIndicator) {
-            const headerRight = document.querySelector('.header-right');
-            if (!headerRight) return;
-            
-            devicesIndicator = document.createElement('div');
-            devicesIndicator.id = 'devicesIndicator';
-            devicesIndicator.className = 'devices-indicator';
-            devicesIndicator.style.cssText = `
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                padding: 0.375rem 0.875rem;
-                background: rgba(91, 76, 253, 0.1);
-                border-radius: 0.375rem;
-                font-size: 0.75rem;
-                margin-right: 0.5rem;
-                color: var(--primary);
-            `;
-            
-            const syncIndicator = document.getElementById('syncIndicator');
-            headerRight.insertBefore(devicesIndicator, syncIndicator);
-        }
-        
-        devicesIndicator.innerHTML = `
-            <i class="fas fa-desktop"></i>
-            <span>${count + 1} devices</span>
-        `;
-        
-        // إخفاء إذا كان الجهاز الوحيد
-        devicesIndicator.style.display = count > 0 ? 'flex' : 'none';
     }
 
     async checkAndInitializeToken() {
@@ -389,27 +249,29 @@ export class App {
         const refreshBtn = document.getElementById('refreshBtn');
         
         try {
-            // Set loading state
             this.state.isLoading = true;
             this.state.isManualRefresh = isManual;
 
-            // Update refresh button state
+            // Update UI
             if (refreshBtn) {
-                const originalHTML = refreshBtn.innerHTML;
                 refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
                 refreshBtn.disabled = true;
                 refreshBtn.classList.add('refreshing');
             }
 
-            // Show appropriate message
             if (isManual) {
-                this.ui.showToast('Refreshing data from server...', 'info');
-                
-                // أبلغ الأجهزة الأخرى عن التحديث
-                await this.realtimeSync.requestManualUpdate();
+                this.ui.showToast('Refreshing data...', 'info');
             }
 
-            // Clear API cache for fresh data
+            // Update sync status in Firebase
+            const db = firebase.firestore();
+            await db.collection('sync').doc('status').set({
+                isUpdating: true,
+                updatedBy: this.getDeviceId(),
+                updateStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            // Clear API cache
             if (this.api) {
                 this.api.clearCache();
             }
@@ -417,13 +279,14 @@ export class App {
             // Load fresh data
             await this.loadAllData(true);
 
-            // تحديث حالة المزامنة
-            await this.realtimeSync.updateSyncStatus({
+            // Update sync status with completion
+            await db.collection('sync').doc('status').set({
                 isUpdating: false,
+                lastUpdateTime: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: this.getDeviceId(),
                 message: 'Update completed successfully'
-            });
+            }, { merge: true });
 
-            // Success message
             if (isManual) {
                 this.ui.showToast('✅ Data refreshed successfully', 'success');
             }
@@ -431,27 +294,28 @@ export class App {
         } catch (error) {
             console.error('Refresh failed:', error);
             
-            // تحديث حالة المزامنة بالفشل
-            await this.realtimeSync.updateSyncStatus({
-                isUpdating: false,
-                message: 'Update failed: ' + error.message
-            });
-            
             if (isManual) {
-                this.ui.showToast('Failed to refresh data: ' + error.message, 'error');
+                this.ui.showToast('Failed to refresh: ' + error.message, 'error');
             }
         } finally {
-            // Reset loading state
             this.state.isLoading = false;
             this.state.isManualRefresh = false;
 
-            // Reset refresh button
             if (refreshBtn) {
                 refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
                 refreshBtn.disabled = false;
                 refreshBtn.classList.remove('refreshing');
             }
         }
+    }
+
+    getDeviceId() {
+        let deviceId = localStorage.getItem('wse_device_id');
+        if (!deviceId) {
+            deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('wse_device_id', deviceId);
+        }
+        return deviceId;
     }
 
     async handleManualLogin() {
@@ -493,10 +357,11 @@ export class App {
         
         this.ui.showMainApp(this.state.centerName);
         
-        // Add token status indicator
+        // Add status indicators
         this.addTokenStatusIndicator();
+        this.updateSyncIndicator('connecting');
         
-        // Load from cache first for quick display
+        // Load from cache ONLY - NO automatic refresh
         const cachedLoaded = await this.loadFromFirebase();
         
         if (cachedLoaded) {
@@ -505,50 +370,161 @@ export class App {
             this.selectInitialDate();
             this.displayContent();
             this.updateLastUpdateTime();
+            this.updateSyncIndicator('connected');
             
-            // Check if needs update
-            const needsUpdate = await this.realtimeSync.needsUpdate();
-            if (needsUpdate) {
-                console.log('Data needs update, fetching...');
-                setTimeout(() => {
-                    this.performRefresh(false);
-                }, 1000);
+            // Check data age for notification only
+            const dataAge = await this.checkDataAge();
+            if (dataAge.ageInMinutes > 30) {
+                this.ui.showToast(`Data is ${dataAge.ageInMinutes} minutes old. Consider refreshing.`, 'info');
             }
         } else {
             // No cache - must load everything
             console.log('No cache found - loading fresh data');
+            this.updateSyncIndicator('syncing');
             await this.loadAllData(false);
+            this.updateSyncIndicator('connected');
         }
         
-        // Setup auto update check
-        this.setupAutoUpdateCheck();
+        // Setup Firebase listeners for real-time updates
+        this.setupFirebaseListeners();
     }
 
-    setupAutoUpdateCheck() {
-        // فحص الحاجة للتحديث كل دقيقة
-        this.autoUpdateCheckInterval = setInterval(async () => {
-            if (!this.state.isLoading) {
-                const needsUpdate = await this.realtimeSync.needsUpdate();
-                if (needsUpdate) {
-                    console.log('Auto update triggered');
-                    await this.performRefresh(false);
+    async checkDataAge() {
+        try {
+            const db = firebase.firestore();
+            const syncDoc = await db.collection('sync').doc('status').get();
+            
+            if (syncDoc.exists) {
+                const data = syncDoc.data();
+                const lastUpdate = data.lastUpdateTime?.toDate ? 
+                    data.lastUpdateTime.toDate() : null;
+                
+                if (lastUpdate) {
+                    const now = new Date();
+                    const ageInMinutes = Math.floor((now - lastUpdate) / (1000 * 60));
+                    
+                    return {
+                        lastUpdate: lastUpdate,
+                        ageInMinutes: ageInMinutes,
+                        needsUpdate: ageInMinutes > 10
+                    };
                 }
             }
-        }, 60 * 1000); // كل دقيقة
+            
+            return {
+                lastUpdate: null,
+                ageInMinutes: 999,
+                needsUpdate: true
+            };
+        } catch (error) {
+            console.error('Error checking data age:', error);
+            return {
+                lastUpdate: null,
+                ageInMinutes: 999,
+                needsUpdate: false
+            };
+        }
+    }
+
+    setupFirebaseListeners() {
+        if (!firebase.firestore) return;
+        
+        const db = firebase.firestore();
+        
+        // Listen to schedule updates
+        this.unsubscribeSchedules = db.collection('schedules')
+            .where('centerId', '==', CONFIG.CENTER_ID)
+            .onSnapshot((snapshot) => {
+                let hasChanges = false;
+                
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'modified' || change.type === 'added') {
+                        hasChanges = true;
+                        const data = change.doc.data();
+                        const parsedData = JSON.parse(data.data);
+                        
+                        // Update local data directly
+                        if (data.mode === 'encounter') {
+                            this.state.data.encounter[data.date] = parsedData;
+                        } else if (data.mode === 'cc') {
+                            this.state.data.cc[data.date] = parsedData;
+                        }
+                    }
+                });
+                
+                if (hasChanges && !this.state.isFirstLoad) {
+                    console.log('📊 Real-time data update received');
+                    this.ui.updateDateTabs(this.state.data);
+                    this.displayContent();
+                    this.updateLastUpdateTime();
+                    this.ui.showToast('Data updated', 'info');
+                }
+            }, (error) => {
+                console.error('Error in Firebase listener:', error);
+            });
+        
+        // Listen to sync status
+        this.unsubscribeSync = db.collection('sync').doc('status')
+            .onSnapshot((doc) => {
+                if (doc.exists && !this.state.isFirstLoad) {
+                    const data = doc.data();
+                    if (data.isUpdating) {
+                        this.updateSyncIndicator('syncing');
+                    } else {
+                        this.updateSyncIndicator('connected');
+                    }
+                }
+            });
+    }
+
+    updateSyncIndicator(status) {
+        const headerRight = document.querySelector('.header-right');
+        if (!headerRight) return;
+        
+        let syncIndicator = document.getElementById('syncIndicator');
+        if (!syncIndicator) {
+            syncIndicator = document.createElement('div');
+            syncIndicator.id = 'syncIndicator';
+            syncIndicator.className = 'sync-status';
+            
+            const refreshBtn = document.getElementById('refreshBtn');
+            headerRight.insertBefore(syncIndicator, refreshBtn);
+        }
+        
+        syncIndicator.className = `sync-status ${status}`;
+        
+        let icon, text;
+        switch(status) {
+            case 'connected':
+                icon = '🟢';
+                text = 'Synced';
+                break;
+            case 'syncing':
+                icon = '🔄';
+                text = 'Syncing...';
+                break;
+            case 'connecting':
+                icon = '🟡';
+                text = 'Connecting...';
+                break;
+            default:
+                icon = '⚪';
+                text = 'Unknown';
+        }
+        
+        syncIndicator.innerHTML = `${icon} <span>${text}</span>`;
     }
 
     addTokenStatusIndicator() {
         const headerRight = document.querySelector('.header-right');
         if (!headerRight) return;
         
-        // Check if already exists
         if (document.getElementById('tokenStatus')) return;
         
         const statusDiv = document.createElement('div');
         statusDiv.id = 'tokenStatus';
         statusDiv.className = 'token-status';
         
-        // Insert before refresh button
         const refreshBtn = document.getElementById('refreshBtn');
         headerRight.insertBefore(statusDiv, refreshBtn);
     }
@@ -651,7 +627,6 @@ export class App {
             // Always refresh display
             this.displayContent();
             
-            // Log completion
             console.log('✅ Data refresh completed');
             
             this.state.isFirstLoad = false;
@@ -1018,20 +993,18 @@ export class App {
     }
 
     logout() {
-        // Clear intervals
-        if (this.autoUpdateCheckInterval) {
-            clearInterval(this.autoUpdateCheckInterval);
-            this.autoUpdateCheckInterval = null;
+        // Cleanup listeners
+        if (this.unsubscribeSchedules) {
+            this.unsubscribeSchedules();
+        }
+        if (this.unsubscribeSync) {
+            this.unsubscribeSync();
         }
         
+        // Clear intervals
         if (this.tokenCheckInterval) {
             clearInterval(this.tokenCheckInterval);
             this.tokenCheckInterval = null;
-        }
-        
-        // Cleanup realtime sync
-        if (this.realtimeSync) {
-            this.realtimeSync.cleanup();
         }
         
         // Unsubscribe from token updates
@@ -1053,7 +1026,7 @@ export class App {
         document.getElementById('appContainer').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         
-        // Clear token field to allow manual entry
+        // Clear token field
         const tokenField = document.getElementById('authToken');
         if (tokenField) {
             tokenField.value = '';
