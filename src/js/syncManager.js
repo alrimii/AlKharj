@@ -1,11 +1,11 @@
-// syncManager.js - Central sync coordination with fixed Firebase Auth
+// syncManager.js - Central sync coordination
 // Path: /src/js/syncManager.js
 
 import { CONFIG } from '../config/config.js';
 
 export class SyncManager {
-    constructor(firebaseService) {
-        this.firebaseService = firebaseService;
+    constructor(firebase) {
+        this.firebase = firebase;
         this.db = null;
         this.userId = null;
         this.isLeader = false;
@@ -20,15 +20,9 @@ export class SyncManager {
         if (this.initialized) return;
         
         try {
-            // Ensure Firebase is initialized first
-            if (!firebase.apps.length) {
-                await this.firebaseService.initialize();
-            }
-
             // Initialize Firebase Auth for anonymous login
             if (!firebase.auth().currentUser) {
-                const userCredential = await firebase.auth().signInAnonymously();
-                console.log('Anonymous auth successful');
+                await firebase.auth().signInAnonymously();
             }
             
             this.userId = firebase.auth().currentUser.uid;
@@ -45,18 +39,11 @@ export class SyncManager {
             this.initialized = true;
         } catch (error) {
             console.error('Failed to initialize SyncManager:', error);
-            // Fallback - work without sync
-            this.initialized = false;
-            this.isLeader = true; // Default to leader if sync fails
+            throw error;
         }
     }
 
     async electLeader() {
-        if (!this.db) {
-            this.isLeader = true;
-            return;
-        }
-
         const syncDoc = this.db.collection('sync').doc('refreshSchedule');
         
         try {
@@ -95,13 +82,11 @@ export class SyncManager {
             });
         } catch (error) {
             console.error('Leader election failed:', error);
-            this.isLeader = true; // Fallback to independent operation
+            this.isLeader = false;
         }
     }
 
     setupLeadershipCheck() {
-        if (!this.db) return;
-
         // Check leadership every 10 seconds
         this.leaderCheckInterval = setInterval(async () => {
             if (this.isLeader) {
@@ -113,8 +98,6 @@ export class SyncManager {
     }
 
     async sendHeartbeat() {
-        if (!this.db) return;
-
         try {
             const syncDoc = this.db.collection('sync').doc('refreshSchedule');
             await syncDoc.update({
@@ -129,8 +112,6 @@ export class SyncManager {
     }
 
     async checkForLeadershipOpportunity() {
-        if (!this.db) return;
-
         try {
             const syncDoc = this.db.collection('sync').doc('refreshSchedule');
             const doc = await syncDoc.get();
@@ -152,18 +133,6 @@ export class SyncManager {
     async shouldRefresh() {
         if (!this.isLeader) {
             return false; // Only leader can initiate refresh
-        }
-
-        if (!this.db) {
-            // Fallback behavior - refresh every 5 minutes
-            const lastRefresh = localStorage.getItem('lastRefreshTime');
-            const now = Date.now();
-            
-            if (!lastRefresh || (now - parseInt(lastRefresh)) > (5 * 60 * 1000)) {
-                localStorage.setItem('lastRefreshTime', now.toString());
-                return true;
-            }
-            return false;
         }
         
         try {
@@ -196,11 +165,6 @@ export class SyncManager {
 
     async markRefreshComplete() {
         if (!this.isLeader) return;
-
-        if (!this.db) {
-            localStorage.setItem('lastRefreshTime', Date.now().toString());
-            return;
-        }
         
         try {
             const syncDoc = this.db.collection('sync').doc('refreshSchedule');
@@ -221,8 +185,6 @@ export class SyncManager {
 
     async markRefreshFailed() {
         if (!this.isLeader) return;
-
-        if (!this.db) return;
         
         try {
             const syncDoc = this.db.collection('sync').doc('refreshSchedule');
@@ -242,8 +204,6 @@ export class SyncManager {
     }
 
     listenToRefreshEvents(callback) {
-        if (!this.db) return () => {}; // No-op function
-
         const syncDoc = this.db.collection('sync').doc('refreshSchedule');
         
         const unsubscribe = syncDoc.onSnapshot((doc) => {
@@ -257,8 +217,6 @@ export class SyncManager {
                     callback('refresh_completed', data);
                 }
             }
-        }, (error) => {
-            console.error('Sync listener error:', error);
         });
         
         this.listeners.push(unsubscribe);
@@ -266,11 +224,6 @@ export class SyncManager {
     }
 
     getNextRefreshTime() {
-        if (!this.db) {
-            const lastRefresh = localStorage.getItem('lastRefreshTime');
-            return lastRefresh ? parseInt(lastRefresh) + (5 * 60 * 1000) : Date.now();
-        }
-
         return this.db.collection('sync').doc('refreshSchedule').get()
             .then(doc => {
                 if (doc.exists) {
@@ -282,12 +235,6 @@ export class SyncManager {
             .catch(() => null);
     }
 
-    getSyncStatus() {
-        if (!this.initialized) return 'disconnected';
-        if (!this.db) return 'offline';
-        return this.isLeader ? 'leader' : 'follower';
-    }
-
     cleanup() {
         if (this.leaderCheckInterval) {
             clearInterval(this.leaderCheckInterval);
@@ -296,11 +243,7 @@ export class SyncManager {
         // Remove all listeners
         this.listeners.forEach(unsubscribe => {
             if (typeof unsubscribe === 'function') {
-                try {
-                    unsubscribe();
-                } catch (e) {
-                    console.warn('Error unsubscribing:', e);
-                }
+                unsubscribe();
             }
         });
         
