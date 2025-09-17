@@ -14,66 +14,37 @@ chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
 
 driver = webdriver.Chrome(options=chrome_options)
 
 try:
-    print("Starting login process...")
+    # Login to WSE
     driver.get("https://world.wallstreetenglish.com/login")
-    
-    # Wait and login
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "login-user-name")))
+    
     driver.find_element(By.ID, "login-user-name").send_keys(os.environ['WSE_USERNAME'])
     driver.find_element(By.ID, "login-password").send_keys(os.environ['WSE_PASSWORD'])
     driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
     
-    print("Waiting for login to complete...")
-    time.sleep(8)
-    
-    # Navigate to dashboard to trigger API calls
-    driver.get("https://world.wallstreetenglish.com/dashboard")
     time.sleep(5)
     
-    # Check network logs for token
-    token = None
-    logs = driver.get_log("performance")
+    # Extract token from localStorage
+    token = driver.execute_script("""
+        return localStorage.getItem('token') || 
+               localStorage.getItem('authToken') || 
+               localStorage.getItem('auth_token');
+    """)
     
-    for log in logs:
-        message = json.loads(log["message"])["message"]
-        if message["method"] != "Network.requestWillBeSent":
-            continue
-            
-        params = message.get("params", {})
-        headers = params.get("request", {}).get("headers", {})
-        auth = headers.get("authorization") or headers.get("Authorization")
-        
-        if auth and auth.startswith("Bearer "):
-            token = auth.replace("Bearer ", "")
-            if token.startswith("eyJ") and len(token) > 100:
-                print(f"Found token from network logs: {token[:30]}...")
-                break
-    
-    # Try localStorage if no token from network
     if not token:
-        print("Checking localStorage...")
+        # Search in all localStorage
         token = driver.execute_script("""
             for(let i=0; i<localStorage.length; i++) {
-                let key = localStorage.key(i);
-                let value = localStorage.getItem(key);
-                console.log(key + ': ' + (value ? value.substring(0,50) : 'empty'));
-                if(value && value.startsWith('eyJ') && value.length > 100) {
-                    return value;
-                }
+                let value = localStorage.getItem(localStorage.key(i));
+                if(value && value.startsWith('eyJ')) return value;
             }
-            return localStorage.getItem('token') || 
-                   localStorage.getItem('authToken') || 
-                   localStorage.getItem('auth_token');
         """)
     
-    if token and token.startswith("eyJ"):
-        print(f"Token extracted: {token[:30]}...")
-        
+    if token:
         # Save to Firebase
         cred_dict = json.loads(os.environ['FIREBASE_CREDS'])
         cred = credentials.Certificate(cred_dict)
@@ -83,18 +54,13 @@ try:
         db.collection('config').document('wseToken').set({
             'token': token,
             'updatedAt': firestore.SERVER_TIMESTAMP,
-            'expiresAt': firestore.SERVER_TIMESTAMP,
-            'source': 'github-action'
+            'expiresAt': firestore.SERVER_TIMESTAMP
         })
         
-        print("Token saved to Firebase successfully")
+        print(f"Token saved successfully: {token[:30]}...")
     else:
-        print("ERROR: No valid token found!")
-        print("Check if login was successful")
+        print("Failed to extract token")
         exit(1)
         
-except Exception as e:
-    print(f"ERROR: {e}")
-    exit(1)
 finally:
     driver.quit()
