@@ -1,4 +1,4 @@
-/* Enhanced Professional WSE Tracker Styles - With Time-Based Highlighting */
+/* Enhanced Professional WSE Tracker Styles - With Subtle Time-Based Highlighting */
 
 :root {
     /* Modern Professional Color Palette */
@@ -1031,54 +1031,86 @@ table tbody td.status-cell {
     background: linear-gradient(90deg, var(--gray-50), transparent) !important;
 }
 
-/* NEW: Time-based Warning Rows (2 hours before class) */
+/* NEW: Subtle Time-based Warning Rows */
 /* Red highlight for incomplete lessons */
 .time-danger-row {
-    background: rgba(239, 68, 68, 0.08) !important;
     position: relative;
-    animation: pulse-danger 3s infinite;
+    background: linear-gradient(90deg, 
+        rgba(239, 68, 68, 0.03) 0%, 
+        rgba(239, 68, 68, 0.05) 50%, 
+        rgba(239, 68, 68, 0.03) 100%);
+    transition: all 0.3s ease;
+}
+
+.time-danger-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, 
+        transparent 0%, 
+        rgba(239, 68, 68, 0.6) 50%, 
+        transparent 100%);
+    animation: subtle-pulse 4s infinite;
+}
+
+.time-danger-row:hover {
+    background: linear-gradient(90deg, 
+        rgba(239, 68, 68, 0.05) 0%, 
+        rgba(239, 68, 68, 0.08) 50%, 
+        rgba(239, 68, 68, 0.05) 100%);
 }
 
 .time-danger-row td {
     background: transparent !important;
-    border-left: 3px solid var(--danger);
-}
-
-.time-danger-row td:first-child {
-    border-left: 4px solid var(--danger);
-}
-
-@keyframes pulse-danger {
-    0%, 100% {
-        background: rgba(239, 68, 68, 0.08);
-    }
-    50% {
-        background: rgba(239, 68, 68, 0.15);
-    }
+    position: relative;
 }
 
 /* Orange highlight for incomplete workbooks only */
 .time-warning-row {
-    background: rgba(245, 158, 11, 0.08) !important;
     position: relative;
-    animation: pulse-warning 3s infinite;
+    background: linear-gradient(90deg, 
+        rgba(245, 158, 11, 0.02) 0%, 
+        rgba(245, 158, 11, 0.04) 50%, 
+        rgba(245, 158, 11, 0.02) 100%);
+    transition: all 0.3s ease;
+}
+
+.time-warning-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, 
+        transparent 0%, 
+        rgba(245, 158, 11, 0.5) 50%, 
+        transparent 100%);
+    animation: subtle-pulse 4s infinite;
+}
+
+.time-warning-row:hover {
+    background: linear-gradient(90deg, 
+        rgba(245, 158, 11, 0.04) 0%, 
+        rgba(245, 158, 11, 0.06) 50%, 
+        rgba(245, 158, 11, 0.04) 100%);
 }
 
 .time-warning-row td {
     background: transparent !important;
-    border-left: 3px solid var(--warning);
+    position: relative;
 }
 
-.time-warning-row td:first-child {
-    border-left: 4px solid var(--warning);
-}
-
-@keyframes pulse-warning {
+/* Subtle animations for time-based rows */
+@keyframes subtle-pulse {
     0%, 100% {
-        background: rgba(245, 158, 11, 0.08);
+        opacity: 0.3;
     }
     50% {
-        background: rgba(245, 158, 11, 0.15);
+        opacity: 0.6;
     }
 }
 
