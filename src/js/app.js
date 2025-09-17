@@ -1,4 +1,4 @@
-// app.js - Updated with synchronized refresh system
+// app.js - Updated with new realtime sync system
 // Path: /src/js/app.js
 
 import { API } from './api.js';
@@ -6,7 +6,7 @@ import { DataProcessor } from './data.js';
 import { UI } from './ui.js';
 import { FirebaseService } from './firebase-service.js';
 import { TokenManager } from './tokenManager.js';
-import { SyncManager } from './syncManager.js';
+import { RealtimeSync } from './realtimeSync.js'; // النظام الجديد
 import { CONFIG } from '../config/config.js';
 
 export class App {
@@ -16,7 +16,7 @@ export class App {
         this.ui = new UI();
         this.firebase = new FirebaseService();
         this.tokenManager = new TokenManager();
-        this.syncManager = null; // NEW: Sync coordinator
+        this.realtimeSync = null; // نظام المزامنة الجديد
         
         this.state = {
             authToken: null,
@@ -35,14 +35,12 @@ export class App {
             isFirstLoad: true,
             loadingProgress: 0,
             isManualRefresh: false,
-            isAutoRefresh: false,
             tokenStatus: 'checking',
-            syncStatus: 'disconnected' // NEW: Sync status
+            activeDevices: 0
         };
 
-        this.autoRefreshInterval = null;
+        this.autoUpdateCheckInterval = null;
         this.tokenCheckInterval = null;
-        this.syncCheckInterval = null; // NEW: Sync check interval
         this.init();
     }
 
@@ -53,14 +51,148 @@ export class App {
         await this.firebase.initialize();
         await this.tokenManager.initialize();
         
-        // NEW: Initialize sync manager
-        this.syncManager = new SyncManager(this.firebase);
-        await this.syncManager.initialize();
+        // Initialize realtime sync
+        this.realtimeSync = new RealtimeSync(firebase);
+        await this.realtimeSync.initialize();
         
         this.setupEventListeners();
+        this.setupRealtimeListeners();
         
         // Check for token availability
         await this.checkAndInitializeToken();
+    }
+
+    setupRealtimeListeners() {
+        // الاستماع لتحديثات البيانات
+        this.realtimeSync.on('data_updated', async (data) => {
+            console.log('📊 Data updated from server');
+            
+            // إعادة تحميل البيانات من Firebase
+            if (!this.state.isLoading) {
+                await this.loadFromFirebase();
+                this.ui.generateDateTabs(this.state.currentMode, this.state.data);
+                this.displayContent();
+                this.updateLastUpdateTime();
+                
+                // إظهار إشعار
+                if (!this.state.isFirstLoad) {
+                    this.ui.showToast('Data updated from server', 'info');
+                }
+            }
+        });
+
+        // الاستماع لبداية التحديث
+        this.realtimeSync.on('update_started', (data) => {
+            console.log('🔄 Server update started');
+            this.updateSyncIndicator('syncing');
+        });
+
+        // الاستماع لاكتمال التحديث
+        this.realtimeSync.on('update_completed', (data) => {
+            console.log('✅ Server update completed');
+            this.updateSyncIndicator('connected');
+        });
+
+        // الاستماع لتحديثات الأجهزة
+        this.realtimeSync.on('devices_updated', (devices) => {
+            this.state.activeDevices = devices.length;
+            this.updateDevicesIndicator(devices.length);
+        });
+
+        // الاستماع لتحديثات الجداول المباشرة
+        this.realtimeSync.on('schedules_updated', async (changes) => {
+            console.log(`📅 ${changes.length} schedule changes detected`);
+            
+            // تحديث البيانات المحلية
+            for (const change of changes) {
+                const data = change.doc.data();
+                const parsedData = JSON.parse(data.data);
+                
+                if (data.mode === 'encounter') {
+                    this.state.data.encounter[data.date] = parsedData;
+                } else if (data.mode === 'cc') {
+                    this.state.data.cc[data.date] = parsedData;
+                }
+            }
+            
+            // تحديث العرض
+            this.ui.updateDateTabs(this.state.data);
+            this.displayContent();
+        });
+    }
+
+    updateSyncIndicator(status) {
+        // إضافة مؤشر حالة المزامنة
+        const headerRight = document.querySelector('.header-right');
+        if (!headerRight) return;
+        
+        let syncIndicator = document.getElementById('syncIndicator');
+        if (!syncIndicator) {
+            syncIndicator = document.createElement('div');
+            syncIndicator.id = 'syncIndicator';
+            syncIndicator.className = 'sync-status';
+            
+            const refreshBtn = document.getElementById('refreshBtn');
+            headerRight.insertBefore(syncIndicator, refreshBtn);
+        }
+        
+        syncIndicator.className = `sync-status ${status}`;
+        
+        let icon, text;
+        switch(status) {
+            case 'connected':
+                icon = '🟢';
+                text = 'Synced';
+                break;
+            case 'syncing':
+                icon = '🔄';
+                text = 'Syncing...';
+                break;
+            case 'disconnected':
+                icon = '🔴';
+                text = 'Offline';
+                break;
+            default:
+                icon = '⚪';
+                text = 'Unknown';
+        }
+        
+        syncIndicator.innerHTML = `${icon} <span>${text}</span>`;
+    }
+
+    updateDevicesIndicator(count) {
+        // إضافة مؤشر عدد الأجهزة المتصلة
+        let devicesIndicator = document.getElementById('devicesIndicator');
+        if (!devicesIndicator) {
+            const headerRight = document.querySelector('.header-right');
+            if (!headerRight) return;
+            
+            devicesIndicator = document.createElement('div');
+            devicesIndicator.id = 'devicesIndicator';
+            devicesIndicator.className = 'devices-indicator';
+            devicesIndicator.style.cssText = `
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.375rem 0.875rem;
+                background: rgba(91, 76, 253, 0.1);
+                border-radius: 0.375rem;
+                font-size: 0.75rem;
+                margin-right: 0.5rem;
+                color: var(--primary);
+            `;
+            
+            const syncIndicator = document.getElementById('syncIndicator');
+            headerRight.insertBefore(devicesIndicator, syncIndicator);
+        }
+        
+        devicesIndicator.innerHTML = `
+            <i class="fas fa-desktop"></i>
+            <span>${count + 1} devices</span>
+        `;
+        
+        // إخفاء إذا كان الجهاز الوحيد
+        devicesIndicator.style.display = count > 0 ? 'flex' : 'none';
     }
 
     async checkAndInitializeToken() {
@@ -167,7 +299,7 @@ export class App {
                 this.api = new API(newToken);
                 
                 // Refresh data
-                this.loadAllData(true);
+                this.performRefresh(true);
                 
                 this.ui.showToast('Authentication token updated', 'info');
             }
@@ -248,21 +380,10 @@ export class App {
         });
     }
 
-    // NEW: Centralized refresh function with sync coordination
     async performRefresh(isManual = false) {
         if (this.state.isLoading) {
             console.log('Refresh already in progress');
             return;
-        }
-
-        // For manual refresh, always proceed
-        // For auto refresh, check sync manager
-        if (!isManual) {
-            const canRefresh = await this.syncManager.shouldRefresh();
-            if (!canRefresh) {
-                console.log('Auto refresh skipped - not sync leader or not time yet');
-                return;
-            }
         }
 
         const refreshBtn = document.getElementById('refreshBtn');
@@ -271,7 +392,6 @@ export class App {
             // Set loading state
             this.state.isLoading = true;
             this.state.isManualRefresh = isManual;
-            this.state.isAutoRefresh = !isManual;
 
             // Update refresh button state
             if (refreshBtn) {
@@ -284,8 +404,9 @@ export class App {
             // Show appropriate message
             if (isManual) {
                 this.ui.showToast('Refreshing data from server...', 'info');
-            } else {
-                console.log('🔄 Coordinated refresh started at', new Date().toLocaleTimeString());
+                
+                // أبلغ الأجهزة الأخرى عن التحديث
+                await this.realtimeSync.requestManualUpdate();
             }
 
             // Clear API cache for fresh data
@@ -296,36 +417,33 @@ export class App {
             // Load fresh data
             await this.loadAllData(true);
 
-            // Mark refresh as complete in sync manager
-            if (!isManual) {
-                await this.syncManager.markRefreshComplete();
-            }
+            // تحديث حالة المزامنة
+            await this.realtimeSync.updateSyncStatus({
+                isUpdating: false,
+                message: 'Update completed successfully'
+            });
 
             // Success message
             if (isManual) {
                 this.ui.showToast('✅ Data refreshed successfully', 'success');
-            } else {
-                console.log('✅ Coordinated refresh completed successfully');
             }
 
         } catch (error) {
             console.error('Refresh failed:', error);
             
-            // Mark refresh as failed in sync manager
-            if (!isManual) {
-                await this.syncManager.markRefreshFailed();
-            }
+            // تحديث حالة المزامنة بالفشل
+            await this.realtimeSync.updateSyncStatus({
+                isUpdating: false,
+                message: 'Update failed: ' + error.message
+            });
             
             if (isManual) {
                 this.ui.showToast('Failed to refresh data: ' + error.message, 'error');
-            } else {
-                console.error('Coordinated refresh failed:', error.message);
             }
         } finally {
             // Reset loading state
             this.state.isLoading = false;
             this.state.isManualRefresh = false;
-            this.state.isAutoRefresh = false;
 
             // Reset refresh button
             if (refreshBtn) {
@@ -378,9 +496,6 @@ export class App {
         // Add token status indicator
         this.addTokenStatusIndicator();
         
-        // NEW: Setup sync event listeners
-        this.setupSyncListeners();
-        
         // Load from cache first for quick display
         const cachedLoaded = await this.loadFromFirebase();
         
@@ -391,57 +506,35 @@ export class App {
             this.displayContent();
             this.updateLastUpdateTime();
             
-            // Background update after delay
-            console.log('Starting background update in 1 second...');
-            setTimeout(() => {
-                this.loadAllData(false);
-            }, 1000);
+            // Check if needs update
+            const needsUpdate = await this.realtimeSync.needsUpdate();
+            if (needsUpdate) {
+                console.log('Data needs update, fetching...');
+                setTimeout(() => {
+                    this.performRefresh(false);
+                }, 1000);
+            }
         } else {
             // No cache - must load everything
             console.log('No cache found - loading fresh data');
             await this.loadAllData(false);
         }
         
-        // NEW: Setup coordinated auto refresh
-        this.setupCoordinatedAutoRefresh();
+        // Setup auto update check
+        this.setupAutoUpdateCheck();
     }
 
-    // NEW: Setup sync event listeners
-    setupSyncListeners() {
-        this.syncManager.listenToRefreshEvents((eventType, data) => {
-            if (eventType === 'refresh_started') {
-                console.log('📡 Other client started refresh');
-                this.state.syncStatus = 'syncing';
-                
-                // Show subtle indication that refresh is happening
-                const refreshBtn = document.getElementById('refreshBtn');
-                if (refreshBtn && !this.state.isLoading) {
-                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
-                    refreshBtn.disabled = true;
-                    refreshBtn.title = 'Another client is refreshing...';
+    setupAutoUpdateCheck() {
+        // فحص الحاجة للتحديث كل دقيقة
+        this.autoUpdateCheckInterval = setInterval(async () => {
+            if (!this.state.isLoading) {
+                const needsUpdate = await this.realtimeSync.needsUpdate();
+                if (needsUpdate) {
+                    console.log('Auto update triggered');
+                    await this.performRefresh(false);
                 }
-                
-            } else if (eventType === 'refresh_completed') {
-                console.log('📡 Other client completed refresh - updating display');
-                this.state.syncStatus = 'connected';
-                
-                // Reload data from Firebase to get fresh updates
-                setTimeout(async () => {
-                    await this.loadFromFirebase();
-                    this.ui.generateDateTabs(this.state.currentMode, this.state.data);
-                    this.displayContent();
-                    this.updateLastUpdateTime();
-                    
-                    // Reset refresh button
-                    const refreshBtn = document.getElementById('refreshBtn');
-                    if (refreshBtn && !this.state.isLoading) {
-                        refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-                        refreshBtn.disabled = false;
-                        refreshBtn.title = 'Refresh data from server';
-                    }
-                }, 1000);
             }
-        });
+        }, 60 * 1000); // كل دقيقة
     }
 
     addTokenStatusIndicator() {
@@ -458,22 +551,6 @@ export class App {
         // Insert before refresh button
         const refreshBtn = document.getElementById('refreshBtn');
         headerRight.insertBefore(statusDiv, refreshBtn);
-    }
-
-    // NEW: Coordinated auto refresh system
-    setupCoordinatedAutoRefresh() {
-        if (this.autoRefreshInterval) {
-            clearInterval(this.autoRefreshInterval);
-        }
-        
-        // Check for refresh opportunity every 30 seconds
-        this.syncCheckInterval = setInterval(async () => {
-            if (!this.state.isLoading) {
-                await this.performRefresh(false); // Auto refresh
-            }
-        }, 30 * 1000); // Check every 30 seconds
-        
-        console.log('🔄 Coordinated auto refresh enabled');
     }
 
     async loadFromFirebase() {
@@ -513,7 +590,7 @@ export class App {
     }
 
     async loadAllData(forceRefresh = false) {
-        const isBackground = !this.state.isFirstLoad && !forceRefresh && !this.state.isManualRefresh && this.state.isAutoRefresh;
+        const isBackground = !this.state.isFirstLoad && !forceRefresh && !this.state.isManualRefresh;
         
         // Only show loading screen for first load
         if (this.state.isFirstLoad) {
@@ -575,11 +652,7 @@ export class App {
             this.displayContent();
             
             // Log completion
-            if (isBackground || this.state.isAutoRefresh) {
-                console.log('✅ Auto refresh completed silently');
-            } else {
-                console.log('✅ Data refresh completed');
-            }
+            console.log('✅ Data refresh completed');
             
             this.state.isFirstLoad = false;
             
@@ -946,9 +1019,9 @@ export class App {
 
     logout() {
         // Clear intervals
-        if (this.autoRefreshInterval) {
-            clearInterval(this.autoRefreshInterval);
-            this.autoRefreshInterval = null;
+        if (this.autoUpdateCheckInterval) {
+            clearInterval(this.autoUpdateCheckInterval);
+            this.autoUpdateCheckInterval = null;
         }
         
         if (this.tokenCheckInterval) {
@@ -956,15 +1029,9 @@ export class App {
             this.tokenCheckInterval = null;
         }
         
-        // NEW: Clear sync interval
-        if (this.syncCheckInterval) {
-            clearInterval(this.syncCheckInterval);
-            this.syncCheckInterval = null;
-        }
-        
-        // NEW: Cleanup sync manager
-        if (this.syncManager) {
-            this.syncManager.cleanup();
+        // Cleanup realtime sync
+        if (this.realtimeSync) {
+            this.realtimeSync.cleanup();
         }
         
         // Unsubscribe from token updates
