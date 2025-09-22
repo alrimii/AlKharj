@@ -1,42 +1,42 @@
-/* Enhanced Professional WSE Tracker Styles - With Subtle Time-Based Highlighting */
+/* WSE Tracker - تصميم عصري وبسيط */
 
 :root {
-    /* Modern Professional Color Palette */
-    --primary: #5b4cfd;
-    --primary-dark: #4a3fd4;
-    --primary-light: #7368ff;
-    --primary-lighter: #9389ff;
-    --primary-lightest: #f0edff;
+    /* لوحة ألوان هادئة وعصرية */
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --primary-light: #818cf8;
+    --primary-lighter: #a5b4fc;
+    --primary-lightest: #eef2ff;
     
-    --secondary: #00d4ff;
-    --secondary-dark: #00a8cc;
-    --secondary-light: #33ddff;
+    --secondary: #06b6d4;
+    --secondary-dark: #0891b2;
+    --secondary-light: #22d3ee;
     
     --success: #10b981;
     --success-light: #34d399;
-    --success-lighter: #6ee7b7;
-    --success-lightest: #d1fae5;
+    --success-lighter: #86efac;
+    --success-lightest: #dcfce7;
     
     --warning: #f59e0b;
     --warning-light: #fbbf24;
-    --warning-lighter: #fcd34d;
+    --warning-lighter: #fde68a;
     --warning-lightest: #fef3c7;
     
-    --danger: #ef4444;
-    --danger-light: #f87171;
-    --danger-lighter: #fca5a5;
-    --danger-lightest: #fee2e2;
+    --danger: #f43f5e;
+    --danger-light: #fb7185;
+    --danger-lighter: #fda4af;
+    --danger-lightest: #ffe4e6;
     
-    --info: #0ea5e9;
-    --info-light: #38bdf8;
-    --info-lighter: #7dd3fc;
-    --info-lightest: #e0f2fe;
+    --info: #3b82f6;
+    --info-light: #60a5fa;
+    --info-lighter: #93c5fd;
+    --info-lightest: #dbeafe;
     
-    /* Sophisticated Neutrals */
-    --gray-50: #fafbfc;
-    --gray-100: #f4f6f8;
-    --gray-200: #e5e8eb;
-    --gray-300: #d2d6dc;
+    /* ألوان محايدة ناعمة */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
     --gray-400: #9ca3af;
     --gray-500: #6b7280;
     --gray-600: #4b5563;
@@ -53,10 +53,10 @@
     --spacing-2xl: 3rem;
     --spacing-3xl: 4rem;
     
-    /* Typography */
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-display: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'Fira Code', 'Courier New', monospace;
+    /* خطوط حديثة */
+    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
+    --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Segoe UI Arabic', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
     
     /* Enhanced Shadows */
     --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -97,26 +97,27 @@ html {
 
 body {
     font-family: var(--font-main);
-    background: linear-gradient(135deg, #f6f8fb 0%, #e9ecf1 100%);
+    background: linear-gradient(to bottom right, #f0f9ff, #f8fafc);
     min-height: 100vh;
-    color: var(--gray-800);
+    color: var(--gray-700);
     line-height: 1.6;
     font-weight: 400;
+    direction: ltr;
 }
 
-/* Login Container - Enhanced */
+/* شاشة تسجيل الدخول - تصميم بسيط وأنيق */
 .login-container {
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
     padding: var(--spacing-xl);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
     position: relative;
     overflow: hidden;
 }
 
-/* Enhanced Animated Background */
+/* خلفية متحركة بسيطة */
 .animated-bg {
     position: absolute;
     width: 100%;
@@ -128,36 +129,36 @@ body {
 .gradient-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.6;
-    animation: float 20s infinite ease-in-out;
+    filter: blur(100px);
+    opacity: 0.4;
+    animation: float 25s infinite ease-in-out;
 }
 
 .orb-1 {
-    width: 500px;
-    height: 500px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    top: -250px;
-    left: -250px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, #60a5fa, #c084fc);
+    top: -300px;
+    left: -300px;
 }
 
 .orb-2 {
-    width: 400px;
-    height: 400px;
-    background: linear-gradient(135deg, #f093fb, #f5576c);
-    bottom: -200px;
-    right: -200px;
-    animation-delay: -7s;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, #fbbf24, #f472b6);
+    bottom: -250px;
+    right: -250px;
+    animation-delay: -8s;
 }
 
 .orb-3 {
-    width: 350px;
-    height: 350px;
-    background: linear-gradient(135deg, #4facfe, #00f2fe);
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, #34d399, #60a5fa);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    animation-delay: -14s;
+    animation-delay: -15s;
 }
 
 @keyframes float {
@@ -175,32 +176,32 @@ body {
     }
 }
 
-/* Enhanced Login Box */
+/* صندوق تسجيل الدخول - بسيط وأنيق */
 .login-box {
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(20px);
-    padding: var(--spacing-3xl);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-2xl);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    padding: 3rem;
+    border-radius: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     width: 100%;
-    max-width: 480px;
+    max-width: 440px;
     position: relative;
     z-index: 1;
-    animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    animation: slideUp 0.6s ease-out;
+    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .login-logo {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    border-radius: var(--radius-xl);
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    border-radius: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto var(--spacing-xl);
-    box-shadow: 0 10px 30px rgba(91, 76, 253, 0.3);
-    animation: pulse 2s infinite;
+    margin: 0 auto 2rem;
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    animation: pulse 3s infinite;
 }
 
 @keyframes pulse {
@@ -233,35 +234,35 @@ body {
 
 .login-title {
     text-align: center;
-    font-size: 2rem;
+    font-size: 1.875rem;
     font-weight: 700;
     color: var(--gray-900);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.5rem;
     font-family: var(--font-display);
+    letter-spacing: -0.025em;
 }
 
 .login-subtitle {
     text-align: center;
-    color: var(--gray-600);
-    margin-bottom: var(--spacing-2xl);
-    font-size: 1rem;
+    color: var(--gray-500);
+    margin-bottom: 2.5rem;
+    font-size: 0.95rem;
     font-weight: 400;
 }
 
-/* Enhanced Form Styles */
+/* نماذج بسيطة وجميلة */
 .form-group {
-    margin-bottom: var(--spacing-xl);
+    margin-bottom: 1.75rem;
 }
 
 .form-group label {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
     color: var(--gray-700);
     font-weight: 500;
     font-size: 0.875rem;
-    letter-spacing: 0.025em;
 }
 
 .form-group label i {
@@ -272,17 +273,17 @@ body {
 .form-group input,
 .form-group textarea {
     width: 100%;
-    padding: 0.875rem 1.125rem;
-    border: 2px solid var(--gray-200);
-    border-radius: var(--radius-lg);
-    font-size: 1rem;
-    transition: var(--transition);
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
     background: white;
     font-weight: 400;
 }
 
 .form-group textarea {
-    min-height: 120px;
+    min-height: 110px;
     resize: vertical;
     font-family: var(--font-mono);
     font-size: 0.875rem;
@@ -292,33 +293,33 @@ body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(91, 76, 253, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     background: white;
 }
 
-/* Enhanced Primary Button */
+/* زر أساسي جميل */
 .btn-primary {
     width: 100%;
-    padding: 1rem 1.75rem;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    padding: 0.875rem 1.5rem;
+    background: var(--primary);
     color: white;
     border: none;
-    border-radius: var(--radius-lg);
-    font-size: 1rem;
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-sm);
-    box-shadow: 0 4px 14px rgba(91, 76, 253, 0.25);
-    letter-spacing: 0.025em;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(91, 76, 253, 0.35);
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
 }
 
 .btn-primary:active {
@@ -348,20 +349,21 @@ body {
     font-size: 0.875rem;
 }
 
-/* Main App Container - Enhanced */
+/* حاوي التطبيق الرئيسي */
 .app-container {
-    background: var(--gray-50);
+    background: linear-gradient(to bottom, #ffffff, #f9fafb);
     min-height: 100vh;
 }
 
-/* Enhanced Header */
+/* رأس الصفحة - تصميم نظيف */
 .header {
-    background: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     position: sticky;
     top: 0;
     z-index: 100;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 1px solid rgba(229, 231, 235, 0.7);
 }
 
 .header-content {
@@ -380,18 +382,19 @@ body {
 }
 
 .app-title {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 700;
     color: var(--gray-900);
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.625rem;
     font-family: var(--font-display);
+    letter-spacing: -0.025em;
 }
 
 .app-title i {
     color: var(--primary);
-    font-size: 1.375rem;
+    font-size: 1.25rem;
 }
 
 .header-right {
@@ -403,14 +406,14 @@ body {
 .user-info {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    padding: 0.625rem 1.25rem;
-    background: var(--primary-lightest);
-    border-radius: var(--radius-full);
-    color: var(--primary-dark);
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--gray-100);
+    border-radius: 2rem;
+    color: var(--gray-700);
     font-weight: 500;
     font-size: 0.875rem;
-    border: 1px solid var(--primary-lighter);
+    border: 1px solid var(--gray-200);
 }
 
 .user-info i {
@@ -419,14 +422,14 @@ body {
 }
 
 .refresh-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-lg);
-    border: 2px solid var(--gray-200);
+    width: 38px;
+    height: 38px;
+    border-radius: 0.625rem;
+    border: 1.5px solid var(--gray-300);
     background: white;
-    color: var(--primary);
+    color: var(--gray-600);
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -436,8 +439,8 @@ body {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-    transform: rotate(90deg);
-    box-shadow: 0 4px 12px rgba(91, 76, 253, 0.2);
+    transform: rotate(180deg);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .refresh-btn.waiting {
@@ -470,25 +473,25 @@ body {
 }
 
 .logout-btn {
-    padding: 0.625rem 1.25rem;
-    background: white;
+    padding: 0.5rem 1rem;
+    background: transparent;
     color: var(--danger);
-    border: 2px solid var(--danger-lighter);
-    border-radius: var(--radius-lg);
+    border: 1.5px solid var(--danger-light);
+    border-radius: 0.625rem;
     cursor: pointer;
     font-weight: 500;
     font-size: 0.875rem;
-    transition: var(--transition);
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
 }
 
 .logout-btn:hover {
     background: var(--danger);
     color: white;
     border-color: var(--danger);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    box-shadow: 0 3px 10px rgba(244, 63, 94, 0.2);
 }
 
 /* Last Update - Enhanced */
@@ -508,47 +511,47 @@ body {
     font-size: 0.875rem;
 }
 
-/* Enhanced Mode Selector */
+/* محدد الأوضاع - تصميم حديث */
 .mode-selector {
     background: white;
-    padding: 1.25rem 2rem;
+    padding: 1rem 2rem;
     border-bottom: 1px solid var(--gray-200);
 }
 
 .mode-buttons {
     display: inline-flex;
-    gap: 4px;
+    gap: 2px;
     background: var(--gray-100);
-    padding: 4px;
-    border-radius: var(--radius-lg);
-    max-width: 600px;
+    padding: 3px;
+    border-radius: 0.625rem;
+    max-width: 400px;
 }
 
 .mode-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.625rem 1.25rem;
     border: none;
     background: transparent;
-    border-radius: var(--radius-md);
+    border-radius: 0.5rem;
     cursor: pointer;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 500;
-    transition: var(--transition);
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
     color: var(--gray-600);
     white-space: nowrap;
 }
 
 .mode-btn i {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--gray-500);
-    transition: var(--transition);
+    transition: all 0.2s ease;
 }
 
 .mode-btn:hover {
-    color: var(--gray-800);
-    background: rgba(0, 0, 0, 0.04);
+    color: var(--gray-700);
+    background: rgba(0, 0, 0, 0.03);
 }
 
 .mode-btn:hover i {
@@ -558,23 +561,23 @@ body {
 .mode-btn.active {
     background: white;
     color: var(--primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .mode-btn.active i {
     color: var(--primary);
 }
 
-/* Enhanced Date Tabs */
+/* علامات التبويب للتواريخ */
 .date-tabs {
     background: white;
-    padding: 1rem 2rem;
+    padding: 0.875rem 2rem;
     display: flex;
-    gap: var(--spacing-sm);
+    gap: 0.5rem;
     overflow-x: auto;
-    border-bottom: 2px solid var(--gray-100);
+    border-bottom: 1px solid var(--gray-200);
     scrollbar-width: thin;
-    scrollbar-color: var(--gray-300) var(--gray-100);
+    scrollbar-color: var(--gray-300) transparent;
 }
 
 .date-tabs::-webkit-scrollbar {
@@ -596,22 +599,22 @@ body {
 }
 
 .date-tab {
-    padding: 0.625rem 1.25rem;
-    background: var(--gray-50);
-    border: 2px solid transparent;
-    border-radius: var(--radius-lg);
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 0.625rem;
     cursor: pointer;
     white-space: nowrap;
     font-weight: 500;
-    transition: var(--transition);
+    transition: all 0.2s ease;
     font-size: 0.875rem;
     color: var(--gray-600);
     position: relative;
 }
 
 .date-tab:hover {
-    background: white;
-    border-color: var(--gray-200);
+    background: var(--gray-50);
+    border-color: var(--gray-400);
     color: var(--gray-800);
     transform: translateY(-1px);
 }
@@ -620,7 +623,7 @@ body {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
-    box-shadow: 0 2px 8px rgba(91, 76, 253, 0.2);
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
 }
 
 .date-tab.today {
@@ -646,10 +649,10 @@ body {
     margin: 0 auto;
 }
 
-/* Enhanced Unit Container */
+/* حاوي الوحدات */
 .unit-container {
-    margin-bottom: 2rem;
-    animation: fadeIn 0.4s ease;
+    margin-bottom: 1.5rem;
+    animation: fadeIn 0.5s ease;
 }
 
 @keyframes fadeIn {
@@ -665,23 +668,24 @@ body {
 
 .unit-box {
     background: white;
-    border-radius: var(--radius-xl);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
     overflow: hidden;
-    border: 1px solid var(--gray-100);
-    transition: var(--transition);
+    border: 1px solid var(--gray-200);
+    transition: all 0.3s ease;
 }
 
 .unit-box:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06);
     border-color: var(--primary-lighter);
+    transform: translateY(-2px);
 }
 
-/* Enhanced Unit Header with New Layout */
+/* رأس الوحدة - تصميم أنيق */
 .unit-header {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
     color: white;
-    padding: 1.25rem 1.75rem;
+    padding: 1rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -746,9 +750,10 @@ body {
     border-radius: var(--radius-full);
 }
 
-/* Enhanced Table Design */
+/* تصميم الجداول - نظيف وواضح */
 .table-container {
     overflow-x: auto;
+    border-radius: 0 0 1rem 1rem;
 }
 
 table {
@@ -759,12 +764,12 @@ table {
 
 th {
     background: var(--gray-50);
-    padding: 1rem 0.875rem;
+    padding: 0.875rem 0.75rem;
     text-align: left;
     font-weight: 600;
-    font-size: 0.8125rem;
-    color: var(--gray-700);
-    border-bottom: 2px solid var(--gray-200);
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    border-bottom: 1px solid var(--gray-200);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -781,13 +786,13 @@ th:last-child {
 }
 
 td {
-    padding: 1rem 0.875rem;
+    padding: 0.875rem 0.75rem;
     text-align: left;
     border-bottom: 1px solid var(--gray-100);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--gray-700);
     background: white;
-    transition: var(--transition-fast);
+    transition: background 0.15s ease;
 }
 
 tr:hover td {
@@ -804,7 +809,7 @@ tr:last-child td {
     padding: 0.75rem 0.25rem !important;
 }
 
-/* Enhanced Status Badges */
+/* شارات الحالة - تصميم بسيط */
 .status-complete,
 .status-progress-high,
 .status-progress-low,
@@ -812,37 +817,37 @@ tr:last-child td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 45px;
-    height: 26px;
-    padding: 0 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
-    font-weight: 700;
+    min-width: 42px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
     text-align: center;
-    transition: var(--transition-fast);
+    transition: all 0.15s ease;
 }
 
 .status-complete {
-    background: var(--success);
-    color: white;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+    background: var(--success-lightest);
+    color: var(--success);
+    border: 1px solid var(--success-lighter);
 }
 
 .status-progress-high {
-    background: var(--warning);
-    color: white;
-    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+    background: var(--warning-lightest);
+    color: var(--warning);
+    border: 1px solid var(--warning-lighter);
 }
 
 .status-progress-low {
-    background: var(--danger);
-    color: white;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+    background: var(--danger-lightest);
+    color: var(--danger);
+    border: 1px solid var(--danger-lighter);
 }
 
 .status-not-started {
-    background: var(--gray-200);
-    color: var(--gray-600);
+    background: var(--gray-100);
+    color: var(--gray-500);
     border: 1px solid var(--gray-300);
 }
 
@@ -897,48 +902,48 @@ table tbody td.status-cell {
     color: var(--danger);
 }
 
-/* Enhanced Result Badges */
+/* شارات النتائج */
 .result-continue {
     background: var(--success-lightest);
     color: var(--success);
-    border: 1.5px solid var(--success-light);
-    font-weight: 600;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
+    border: 1px solid var(--success-light);
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 2rem;
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .result-repeat {
     background: var(--danger-lightest);
     color: var(--danger);
-    border: 1.5px solid var(--danger-light);
-    font-weight: 600;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
+    border: 1px solid var(--danger-light);
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 2rem;
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .result-noshow {
     background: var(--gray-100);
     color: var(--gray-600);
-    border: 1.5px solid var(--gray-300);
-    font-weight: 600;
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
+    border: 1px solid var(--gray-300);
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 2rem;
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 .result-pending {
     background: var(--warning-lightest);
     color: var(--warning);
-    border: 1.5px solid var(--warning-light);
-    padding: 4px 12px;
-    border-radius: var(--radius-full);
+    border: 1px solid var(--warning-light);
+    padding: 3px 10px;
+    border-radius: 2rem;
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
 }
 
 /* Enhanced Copy Button */
@@ -1063,7 +1068,6 @@ table tbody td.status-cell {
 }
 
 .time-danger-row::before {
-    content: '';
     position: absolute;
     left: 0;
     top: 0;
@@ -1133,14 +1137,14 @@ table tbody td.status-cell {
     }
 }
 
-/* Enhanced Loading State */
+/* حالة التحميل */
 .loading {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 5rem;
-    min-height: 400px;
+    padding: 4rem;
+    min-height: 350px;
 }
 
 .spinner-modern {
@@ -1188,14 +1192,14 @@ table tbody td.status-cell {
     50% { opacity: 0.6; }
 }
 
-/* Enhanced Empty State */
+/* حالة فارغة */
 .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 3rem 2rem;
     background: white;
-    border-radius: var(--radius-xl);
-    margin: 3rem auto;
-    max-width: 450px;
+    border-radius: 1rem;
+    margin: 2rem auto;
+    max-width: 420px;
     border: 2px dashed var(--gray-300);
 }
 
@@ -1219,27 +1223,27 @@ table tbody td.status-cell {
     line-height: 1.5;
 }
 
-/* Enhanced Toast Notifications */
+/* إشعارات Toast */
 .toast-container {
     position: fixed;
-    top: 24px;
-    right: 24px;
+    top: 20px;
+    right: 20px;
     z-index: 9999;
 }
 
 .toast {
     background: white;
-    border-radius: var(--radius-lg);
-    padding: 1rem 1.25rem;
-    margin-bottom: 1rem;
-    box-shadow: var(--shadow-lg);
+    border-radius: 0.75rem;
+    padding: 0.875rem 1.125rem;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
-    gap: 0.875rem;
-    min-width: 280px;
-    max-width: 400px;
-    animation: slideInRight 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border-left: 4px solid var(--gray-400);
+    gap: 0.75rem;
+    min-width: 260px;
+    max-width: 380px;
+    animation: slideInRight 0.3s ease-out;
+    border-left: 3px solid var(--gray-400);
 }
 
 @keyframes slideInRight {
