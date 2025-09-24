@@ -23,8 +23,7 @@ export class App {
             currentDate: null,
             data: {
                 encounter: {},
-                cc: {},
-                self: []
+                cc: {}
             },
             studentDetails: {},
             levelSummaries: {},
@@ -33,7 +32,8 @@ export class App {
             isFirstLoad: true,
             loadingProgress: 0,
             isManualRefresh: false,
-            tokenStatus: 'checking'
+            tokenStatus: 'checking',
+            searchTerm: '' // For search functionality
         };
 
         this.tokenCheckInterval = null;
@@ -238,6 +238,17 @@ export class App {
                 this.switchMode(btn.dataset.mode);
             });
         });
+        
+        // Search input listener with debounce
+        const searchInput = document.getElementById('searchInput');
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.state.searchTerm = e.target.value;
+                this.displayContent();
+            }, 300); // Debounce search input
+        });
     }
 
     async performRefresh(isManual = false) {
@@ -407,6 +418,16 @@ export class App {
         }
         
         this.ui.showMainApp(this.state.centerName);
+        
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            // Use URL hash (#) for admin mode, which works locally and on servers
+            if (window.location.hash === '#admin') {
+                logoutBtn.style.display = 'flex';
+            } else {
+                logoutBtn.style.display = 'none';
+            }
+        }
         
         // Add status indicators
         this.addTokenStatusIndicator();
@@ -662,12 +683,6 @@ export class App {
                 if (userIds.length > 0) {
                     const cachedLevels = await this.firebase.getLevelSummaries(userIds);
                     this.state.levelSummaries = cachedLevels;
-                }
-                
-                // Load self-booking
-                const selfData = await this.firebase.getSelfBookingData();
-                if (selfData) {
-                    this.state.data.self = selfData;
                 }
                 
                 console.log('Cache loaded successfully');
@@ -971,11 +986,6 @@ export class App {
                 await this.firebase.saveLevelSummaries(this.state.levelSummaries);
             }
             
-            // Save self-booking if exists
-            if (this.state.data.self.length > 0) {
-                await this.firebase.saveSelfBookingData(this.state.data.self);
-            }
-            
             console.log('✅ All data saved to Firebase');
         } catch (error) {
             console.error('Failed to save to Firebase:', error);
@@ -1028,60 +1038,12 @@ export class App {
         this.state.currentMode = mode;
         this.ui.setActiveMode(mode);
         
-        if (mode === 'self' && this.state.data.self.length === 0) {
-            this.ui.showLoading('Loading self-booking data...');
-            await this.loadSelfBookingData();
+        // If there's a search term, stay in search view, otherwise switch date view
+        if (!this.state.searchTerm.trim()) {
+            this.ui.generateDateTabs(mode, this.state.data);
+            this.selectInitialDate();
         }
-        
-        this.ui.generateDateTabs(mode, this.state.data);
-        this.selectInitialDate();
         this.displayContent();
-    }
-
-    async loadSelfBookingData() {
-        try {
-            // Try cache first
-            const cachedData = await this.firebase.getSelfBookingData();
-            if (cachedData && !this.state.isManualRefresh) {
-                this.state.data.self = cachedData;
-                this.displayContent();
-                return;
-            }
-            
-            // Fetch fresh
-            const contracts = await this.api.fetchContracts();
-            const processedStudents = [];
-            
-            for (const contract of contracts) {
-                if (!contract.studentId) continue;
-                
-                const contractDetails = await this.api.fetchStudentContractDetails(contract.studentId);
-                const processed = this.dataProcessor.processSelfBookingStudent(
-                    contract,
-                    contractDetails,
-                    CONFIG.RED_FLAG_PROFILES
-                );
-                
-                if (processed && processed.hasSelfBooking) {
-                    processedStudents.push(processed);
-                }
-            }
-            
-            this.state.data.self = processedStudents.sort((a, b) => {
-                if (a.isHighlighted !== b.isHighlighted) {
-                    return a.isHighlighted ? 1 : -1;
-                }
-                return a.name.localeCompare(b.name);
-            });
-            
-            await this.firebase.saveSelfBookingData(this.state.data.self);
-            
-        } catch (error) {
-            console.error('Error loading self-booking:', error);
-            this.state.data.self = [];
-        } finally {
-            this.displayContent();
-        }
     }
 
     selectDate(date) {
@@ -1090,70 +1052,97 @@ export class App {
     }
 
     displayContent() {
-        const processedData = this.dataProcessor.processDataForDisplay(
-            this.state.currentMode,
-            this.state.currentDate,
-            this.state.data,
-            this.state.levelSummaries
-        );
+        if (this.state.searchTerm.trim()) {
+            this.ui.toggleDateTabs(false);
+            const searchResults = this.dataProcessor.processGlobalSearch(
+                this.state.data,
+                this.state.levelSummaries,
+                this.state.searchTerm
+            );
+            this.ui.displayGlobalSearchResults(searchResults);
+        } else {
+            this.ui.toggleDateTabs(true);
+            const processedData = this.dataProcessor.processDataForDisplay(
+                this.state.currentMode,
+                this.state.currentDate,
+                this.state.data,
+                this.state.levelSummaries
+            );
+            this.ui.displayContent(this.state.currentMode, processedData);
+        }
+    }
+    
+    async showStudentProfile(userId) {
+        const student = this.state.studentDetails[userId];
+        const levelData = this.state.levelSummaries[userId];
         
-        this.ui.displayContent(this.state.currentMode, processedData);
+        if (!student || !levelData) {
+            this.ui.showToast('Student details not found', 'error');
+            return;
+        }
+        
+        const studentName = student.firstName;
+        const history = [];
+        
+        if (levelData && levelData.elements) {
+            levelData.elements.forEach(level => {
+                (level.units || []).forEach(unit => {
+                    const result = unit.encounterSummary?.result || "Pending";
+                    if (result !== "Pending") {
+                        const overallScores = this.dataProcessor.formatScores(
+                            unit.activitySummary?.overall, 
+                            unit.workbookSummary?.overall
+                        );
+                        history.push({
+                            unit: `Unit ${unit.unitNumber}`,
+                            result: result,
+                            teacher: unit.encounterSummary?.teacherFullName || 'N/A',
+                            overall: overallScores,
+                            score: unit.encounterSummary?.score !== undefined && unit.encounterSummary?.score !== null 
+                                ? unit.encounterSummary.score.toFixed(1) 
+                                : 'N/A'
+                        });
+                    }
+                });
+            });
+        }
+        
+        history.sort((a, b) => {
+            const unitA = parseInt(a.unit.replace('Unit ', ''));
+            const unitB = parseInt(b.unit.replace('Unit ', ''));
+            return unitB - unitA;
+        });
+
+        this.ui.showStudentProfileModal({
+            name: studentName,
+            history: history
+        });
     }
 
     logout() {
-        // Cleanup listeners
-        if (this.unsubscribeSchedules) {
-            this.unsubscribeSchedules();
-        }
-        if (this.unsubscribeSync) {
-            this.unsubscribeSync();
-        }
+        if (this.unsubscribeSchedules) this.unsubscribeSchedules();
+        if (this.unsubscribeSync) this.unsubscribeSync();
+        if (this.tokenCheckInterval) clearInterval(this.tokenCheckInterval);
+        if (this.tokenManager?.unsubscribe) this.tokenManager.unsubscribe();
         
-        // Clear intervals
-        if (this.tokenCheckInterval) {
-            clearInterval(this.tokenCheckInterval);
-            this.tokenCheckInterval = null;
-        }
-        
-        // Unsubscribe from token updates
-        if (this.tokenManager && this.tokenManager.unsubscribe) {
-            this.tokenManager.unsubscribe();
-        }
-        
-        // Clear state
-        this.state.authToken = null;
-        this.state.tokenStatus = 'checking';
-        this.state.isFirstLoad = true;
+        this.state = { ...this.state, authToken: null, tokenStatus: 'checking', isFirstLoad: true };
         this.api = null;
         
-        // Clear local storage
         localStorage.removeItem('wse_auth_token');
         localStorage.removeItem('wse_center_name');
         
-        // Hide main app and show login
         document.getElementById('appContainer').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         
-        // Clear token field
         const tokenField = document.getElementById('authToken');
-        if (tokenField) {
-            tokenField.value = '';
-            tokenField.placeholder = 'Enter token manually or wait for automatic update...';
-        }
+        if (tokenField) tokenField.value = '';
         
-        // Remove any existing status messages
-        const statusMsg = document.querySelector('.token-status-message');
-        if (statusMsg) {
-            statusMsg.remove();
-        }
-        
+        document.querySelector('.token-status-message')?.remove();
         console.log('Logged out successfully');
     }
 }
 
-// Global function
-window.selectDate = (date) => {
-    if (window.wseApp) {
-        window.wseApp.selectDate(date);
-    }
-};
+// Global functions
+window.selectDate = (date) => window.wseApp?.selectDate(date);
+window.showStudentProfile = (userId) => window.wseApp?.showStudentProfile(userId);
+

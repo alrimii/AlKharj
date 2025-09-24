@@ -1,4 +1,4 @@
-// data.js - Enhanced with time-based row highlighting
+// data.js - Enhanced with time-based row highlighting and global search
 // Path: /src/js/data.js
 
 import { CONFIG } from '../config/config.js';
@@ -318,7 +318,6 @@ export class DataProcessor {
         return `🛑 Please make sure you finish ( ${parts.join(' & ')} ) before your class`;
     }
 
-    // NEW: Check if student needs highlighting based on time and homework status
     checkTimeBasedHighlight(classTime, classDate, lessonStatus, workbookStatus) {
         // Only check for today's classes
         const todayStr = this.getTodayString();
@@ -378,106 +377,12 @@ export class DataProcessor {
 
         return null;
     }
-
-    // FIXED: Enhanced processSelfBookingStudent to match self.py logic exactly
-    processSelfBookingStudent(contract, contractDetails, redFlagProfiles) {
-        if (!contract || !contract.studentId) {
-            return null;
-        }
-        
-        // Check if we have valid contract details
-        if (!contractDetails || !contractDetails.contractViews) {
-            console.warn(`No contract details for student ${contract.studentId}`);
-            return null;
-        }
-        
-        // Check for self-booking and get end date
-        const hasBooking = this.hasSelfBooking(contractDetails);
-        const endDate = this.getContractEndDate(contractDetails);
-        
-        // Only include if there's a valid end date (means active contract)
-        if (!endDate) {
-            console.log(`No valid end date for student ${contract.studentCode}`);
-            return null;
-        }
-        
-        // Build the student record
-        const studentRecord = {
-            code: contract.studentCode || "N/A",
-            name: `${contract.firstName || ''} ${contract.lastName || ''}`.trim() || "N/A",
-            endDate: endDate,
-            hasSelfBooking: hasBooking,
-            studentId: contract.studentId,
-            isHighlighted: redFlagProfiles.includes(contract.studentId)
-        };
-        
-        // Only return if student has self-booking
-        return hasBooking ? studentRecord : null;
-    }
-
-    // FIXED: Match self.py logic exactly
-    hasSelfBooking(contractData) {
-        if (!contractData || !contractData.contractViews) {
-            return false;
-        }
-        
-        // Only check valid contracts (matching self.py logic)
-        const validContracts = contractData.contractViews.filter(c => 
-            c.contractStatus === "Valid"
-        );
-        
-        // Check each valid contract for Self-booking product
-        for (const contract of validContracts) {
-            const products = contract.products || [];
-            
-            // Check if any product is named "Self-booking" (case-sensitive like in self.py)
-            for (const product of products) {
-                if (product.name === "Self-booking") {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    // FIXED: Match self.py logic exactly
-    getContractEndDate(contractData) {
-        if (!contractData || !contractData.contractViews) {
-            return null;
-        }
-        
-        // Find valid contracts only (matching self.py logic)
-        const validContracts = contractData.contractViews.filter(c => 
-            c.contractStatus === "Valid"
-        );
-        
-        if (validContracts.length === 0) {
-            return null;
-        }
-        
-        // Sort by end date (most recent first)
-        validContracts.sort((a, b) => {
-            const dateA = new Date(a.endDate || '1900-01-01');
-            const dateB = new Date(b.endDate || '1900-01-01');
-            return dateB - dateA; // Descending order
-        });
-        
-        // Return the end date of the most recent valid contract
-        const endDate = validContracts[0].endDate;
-        return endDate || null;
-    }
-
+    
     processDataForDisplay(mode, currentDate, data, levelSummaries) {
-        if (mode === 'self') {
-            return data.self;
-        }
-        
-        const classData = data[mode][currentDate] || [];
+        const classData = data[mode]?.[currentDate] || [];
         const processed = [];
         
         if (mode === 'encounter') {
-            // Group all encounter classes by time, not by unit
             const timeGroups = {};
             
             for (const cls of classData) {
@@ -487,7 +392,6 @@ export class DataProcessor {
                 const datetime = this.parseDateTime(cls.originalStartDate || cls.startDate);
                 const teacher = (cls.teacherFirstName || 'N/A').split(' ')[0];
                 
-                // Create unique key for each class (time + unit + teacher)
                 const uniqueKey = `${datetime.time}_Unit${unitNumber}_${teacher}`;
                 
                 if (!timeGroups[uniqueKey]) {
@@ -517,24 +421,19 @@ export class DataProcessor {
                 }
             }
             
-            // Convert to array and sort by time
             for (const group of Object.values(timeGroups)) {
                 processed.push(group);
             }
             
-            // Sort by time first, then by unit if times are the same
             processed.sort((a, b) => {
                 const timeCompare = this.compareTime(a.time, b.time);
                 if (timeCompare !== 0) return timeCompare;
-                
-                // If times are equal, sort by unit number
                 const unitA = parseInt(a.unit.replace('Unit ', ''));
                 const unitB = parseInt(b.unit.replace('Unit ', ''));
                 return unitA - unitB;
             });
             
         } else if (mode === 'cc') {
-            // Group CC classes by time instead of showing all in one table
             const timeGroups = {};
             
             for (const cls of classData) {
@@ -542,7 +441,6 @@ export class DataProcessor {
                 const teacher = (cls.teacherFirstName || 'N/A').split(' ')[0];
                 const type = cls.categoriesAbbreviations || 'N/A';
                 
-                // Use time as the grouping key
                 const timeKey = datetime.time;
                 if (!timeGroups[timeKey]) {
                     timeGroups[timeKey] = {
@@ -551,7 +449,6 @@ export class DataProcessor {
                     };
                 }
                 
-                const students = [];
                 const allStudents = [...(cls.bookedStudents || []), ...(cls.standbyStudents || [])];
                 
                 for (const studentWrapper of allStudents) {
@@ -561,21 +458,19 @@ export class DataProcessor {
                     const firstName = (student.firstName || 'N/A').split(' ')[0];
                     const phone = this.formatPhoneNumber(student.mobileTelephone);
                     
-                    students.push({
+                    timeGroups[timeKey].classes.push({
+                        userId: student.userId,
                         code: student.studentCode || 'N/A',
                         name: firstName,
-                        phone: phone,  // Still keep phone for message creation
+                        phone: phone,
                         type: type,
                         teacher: teacher,
                         profileUrl: `https://world.wallstreetenglish.com/profile/${student.userId}/gradeBook`,
                         message: this.createClassReminder(phone, firstName, datetime.time, datetime.date, true)
                     });
                 }
-                
-                timeGroups[timeKey].classes.push(...students);
             }
             
-            // Convert to array and sort by time properly
             for (const [time, group] of Object.entries(timeGroups)) {
                 processed.push({
                     time: time,
@@ -583,12 +478,87 @@ export class DataProcessor {
                 });
             }
             
-            // Sort using the fixed compareTime function
             processed.sort((a, b) => this.compareTime(a.time, b.time));
         }
         
         return processed;
     }
+    
+    // NEW: Global search processing function
+    processGlobalSearch(allData, levelSummaries, searchTerm) {
+        const results = {};
+        const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+
+        if (!lowerCaseSearchTerm) return {};
+
+        const processStudent = (student, cls, date, mode) => {
+            const studentName = (student.firstName || '').toLowerCase();
+            const studentCode = (student.studentCode || '').toLowerCase();
+
+            if (studentName.includes(lowerCaseSearchTerm) || studentCode.includes(lowerCaseSearchTerm)) {
+                if (!results[student.userId]) {
+                    results[student.userId] = {
+                        name: student.firstName,
+                        code: student.studentCode,
+                        userId: student.userId,
+                        appearances: []
+                    };
+                }
+                
+                const datetime = this.parseDateTime(cls.originalStartDate || cls.startDate);
+                
+                if (mode === 'encounter') {
+                    const unitNumber = cls.categories?.[0]?.attributes?.number;
+                    if (!unitNumber) return;
+                    
+                    const levelData = levelSummaries[student.userId];
+                    const result = this.getEncounterResult(levelData, unitNumber);
+
+                    results[student.userId].appearances.push({
+                        date: datetime.date,
+                        time: datetime.time,
+                        mode: 'Encounter',
+                        details: `Unit ${unitNumber}`,
+                        result: result,
+                        teacher: (cls.teacherFirstName || 'N/A').split(' ')[0]
+                    });
+                } else { // CC
+                    results[student.userId].appearances.push({
+                        date: datetime.date,
+                        time: datetime.time,
+                        mode: 'CC',
+                        details: cls.categoriesAbbreviations || 'N/A',
+                        result: 'N/A',
+                        teacher: (cls.teacherFirstName || 'N/A').split(' ')[0]
+                    });
+                }
+            }
+        };
+
+        // Iterate through all encounter data
+        for (const date in allData.encounter) {
+            for (const cls of allData.encounter[date]) {
+                const allStudents = [...(cls.bookedStudents || []), ...(cls.standbyStudents || [])];
+                allStudents.forEach(sw => sw.student && processStudent(sw.student, cls, date, 'encounter'));
+            }
+        }
+
+        // Iterate through all CC data
+        for (const date in allData.cc) {
+            for (const cls of allData.cc[date]) {
+                const allStudents = [...(cls.bookedStudents || []), ...(cls.standbyStudents || [])];
+                allStudents.forEach(sw => sw.student && processStudent(sw.student, cls, date, 'cc'));
+            }
+        }
+        
+        // Sort appearances by date for each student
+        for (const studentId in results) {
+            results[studentId].appearances.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        return results;
+    }
+
 
     processEncounterStudent(student, unitNumber, datetime, levelData, isStandby = false) {
         const firstName = (student.firstName || 'N/A').split(' ')[0];
@@ -604,13 +574,13 @@ export class DataProcessor {
         const message = this.createClassReminder(phone, firstName, datetime.time, datetime.date, false);
         const homework = this.createHomeworkReminder(phone, lessonStatus, workbookStatus, datetime.date);
         
-        // NEW: Check for time-based highlighting
         const timeHighlight = this.checkTimeBasedHighlight(datetime.time, datetime.date, lessonStatus, workbookStatus);
         
         return {
+            userId: student.userId,
             code: student.studentCode || 'N/A',
             name: firstName,
-            phone: phone,  // Still keep phone for message creation
+            phone: phone,
             profileUrl: `https://world.wallstreetenglish.com/profile/${student.userId}/gradeBook`,
             lessons: lessonStatus,
             workbooks: workbookStatus,
@@ -619,7 +589,7 @@ export class DataProcessor {
             message: message,
             homework: homework,
             isStandby: isStandby,
-            timeHighlight: timeHighlight  // NEW: Add time-based highlight status
+            timeHighlight: timeHighlight
         };
     }
 

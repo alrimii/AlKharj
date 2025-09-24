@@ -24,8 +24,9 @@ export class FirebaseService {
             
             console.log('Firebase initialized successfully');
             
-            // Clean old data on new day
-            await this.cleanOldDataIfNeeded();
+            // The daily data cleaning was causing slow first loads.
+            // It's better to rely on manual refresh and cache expiration.
+            // await this.cleanOldDataIfNeeded(); 
         } catch (error) {
             console.error('Failed to initialize Firebase:', error);
             this.initialized = false;
@@ -279,54 +280,6 @@ export class FirebaseService {
         }
     }
 
-    // Save self-booking data
-    async saveSelfBookingData(data) {
-        if (!this.initialized) await this.initialize();
-        if (!this.db) return false;
-        
-        try {
-            await this.db.collection('selfBooking').doc('latest').set({
-                data: JSON.stringify(data),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                expiresAt: new Date(Date.now() + this.cacheExpiry),
-                centerId: CONFIG.CENTER_ID,
-                count: data.length
-            });
-            
-            console.log(`Saved ${data.length} self-booking records`);
-            return true;
-        } catch (error) {
-            console.error('Error saving self-booking data:', error);
-            return false;
-        }
-    }
-
-    // Get self-booking data
-    async getSelfBookingData() {
-        if (!this.initialized) await this.initialize();
-        if (!this.db) return null;
-        
-        try {
-            const doc = await this.db.collection('selfBooking').doc('latest').get();
-            
-            if (!doc.exists) return null;
-            
-            const data = doc.data();
-            const expiresAt = data.expiresAt?.toDate();
-            
-            if (expiresAt && new Date() > expiresAt) {
-                console.log('Self-booking cache expired');
-                return null;
-            }
-            
-            console.log(`Retrieved ${data.count} self-booking records from cache`);
-            return JSON.parse(data.data);
-        } catch (error) {
-            console.error('Error getting self-booking data:', error);
-            return null;
-        }
-    }
-
     // Clear all cache
     async clearAllCache() {
         if (!this.initialized) await this.initialize();
@@ -362,13 +315,6 @@ export class FirebaseService {
                 }
             });
             if (count > 0) await batch2.commit();
-            
-            // Delete self-booking
-            const selfBookingDoc = this.db.collection('selfBooking').doc('latest');
-            const selfBookingSnapshot = await selfBookingDoc.get();
-            if (selfBookingSnapshot.exists) {
-                await selfBookingDoc.delete();
-            }
             
             console.log('Cleared all cache data from Firebase');
         } catch (error) {
@@ -410,3 +356,4 @@ export class FirebaseService {
         }
     }
 }
+

@@ -2,23 +2,17 @@
 
 export const CONFIG = {
     API_BASE_URL: 'https://world.wallstreetenglish.com/api',
-    CONTRACT_API_URL: 'https://contractapi.wallstreetenglish.com', // عودة إلى URL الأصلي
     CENTER_ID: '0403a03c-0ea3-4185-8ace-d27e3b70e1e3',
     
     DAYS_TO_FETCH_AHEAD: 5,
     DAYS_TO_FETCH_BEHIND: 2,
     TIMEZONE_OFFSET: 3,
     
-    RED_FLAG_PROFILES: [
-        "d9b01911-6dae-41c5-8d51-8f2330befc92",
-        "f9b60c7f-a520-4845-a7b3-e766b7da9bfa",
-        "68fd03b7-fcea-44c0-ad20-835ca395efc7"
-    ],
-    
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000,
     REQUEST_TIMEOUT: 15000,
-    CACHE_TIMEOUT: 10 * 60 * 1000,
+    // Increased cache timeout from 10 minutes to 4 hours for better performance
+    CACHE_TIMEOUT: 4 * 60 * 60 * 1000,
     BATCH_SIZE: 15,
     MAX_PARALLEL_REQUESTS: 8,
     
@@ -46,3 +40,4 @@ export const CONFIG = {
         PENDING: '#ffffff'
     }
 };
+
