@@ -1,4 +1,4 @@
-// data.js - Enhanced with time-based row highlighting and global search
+// data.js - Enhanced with feedback support in search results, Social Club detection, and Overall scores
 // Path: /src/js/data.js
 
 import { CONFIG } from '../config/config.js';
@@ -28,7 +28,7 @@ export class DataProcessor {
     getCurrentSaudiTime() {
         const now = new Date();
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-        const saudiTime = new Date(utc + (3600000 * 3)); // Saudi Arabia is UTC+3
+        const saudiTime = new Date(utc + (3600000 * 3));
         return saudiTime;
     }
 
@@ -67,6 +67,18 @@ export class DataProcessor {
         return abbreviation.length === 2 && /^[A-Za-z][0-9]$/.test(abbreviation);
     }
 
+    // New method to detect Social Club
+    isSocialClub(cls) {
+        // Check if it's a CC class first
+        if (this.isComplementaryClass(cls.categoriesAbbreviations)) {
+            // Check numberOfSeats to determine if it's Social Club
+            if (cls.numberOfSeats && cls.numberOfSeats > 12) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     parseDateTime(dateStr, timezoneOffset = CONFIG.TIMEZONE_OFFSET) {
         let datePart = "Unknown";
         let dayName = "Unknown";
@@ -80,8 +92,13 @@ export class DataProcessor {
             const parts = dateStr.split('T');
             datePart = parts[0];
             
-            const dateObj = new Date(datePart + 'T00:00:00');
-            dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+            // FIXED: Create date at noon UTC to avoid timezone issues
+            const [year, month, day] = datePart.split('-').map(Number);
+            const dateObj = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+            
+            // Use UTC day to get correct day name
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            dayName = days[dateObj.getUTCDay()];
             
             if (parts[1] && parts[1].length >= 5) {
                 const timeStr = parts[1].substring(0, 5);
@@ -181,6 +198,21 @@ export class DataProcessor {
         return "P";
     }
 
+    // Get feedback for a specific unit
+    getEncounterFeedback(levelData, unitNumber) {
+        if (!levelData?.elements) return null;
+        
+        for (const level of levelData.elements) {
+            for (const unit of (level.units || [])) {
+                if (String(unit.unitNumber) === String(unitNumber)) {
+                    return unit.encounterSummary?.feedback || null;
+                }
+            }
+        }
+        
+        return null;
+    }
+
     getUnitScores(levelData, unitNumber) {
         if (!levelData?.elements) return { lessonScore: null, workbookScore: null };
         
@@ -220,7 +252,7 @@ export class DataProcessor {
         return parts.join(" ");
     }
 
-    createClassReminder(phone, firstName, classTime, classDate, isCC = false) {
+    createClassReminder(phone, firstName, classTime, classDate, isCC = false, isSocialClub = false) {
         if (phone === "N/A") return "N/A";
         
         const todayStr = this.getTodayString();
@@ -240,6 +272,25 @@ export class DataProcessor {
             saturdayStr = saturday.toISOString().split('T')[0];
         }
         
+        // Special handling for Social Club
+        if (isSocialClub) {
+            // Extract time without AM/PM for the message
+            const timeWithoutPeriod = classTime.replace(/\s*(AM|PM)$/i, '');
+            
+            if (classDate === todayStr) {
+                return `Please don't miss your Social Club today at ${classTime}.`;
+            } 
+            else if (classDate === tomorrowStr && tomorrowDay !== 5) {
+                return `Dear ${firstName},\nYou have a Social Club tomorrow at ${classTime}.`;
+            } 
+            else if (saturdayStr && classDate === saturdayStr) {
+                return `Dear ${firstName},\nYou have a Social Club on Saturday at ${classTime}.`;
+            }
+            
+            return "N/A";
+        }
+        
+        // Regular CC and encounter class messages
         const classType = isCC ? "CC" : "encounter class";
         
         if (classDate === todayStr) {
@@ -398,6 +449,7 @@ export class DataProcessor {
                     timeGroups[uniqueKey] = {
                         time: datetime.time,
                         unit: `Unit ${unitNumber}`,
+                        unitNumber: unitNumber, // Add unit number for reference
                         teacher: teacher,
                         students: []
                     };
@@ -440,6 +492,7 @@ export class DataProcessor {
                 const datetime = this.parseDateTime(cls.originalStartDate || cls.startDate);
                 const teacher = (cls.teacherFirstName || 'N/A').split(' ')[0];
                 const type = cls.categoriesAbbreviations || 'N/A';
+                const isSocialClub = this.isSocialClub(cls);
                 
                 const timeKey = datetime.time;
                 if (!timeGroups[timeKey]) {
@@ -463,10 +516,11 @@ export class DataProcessor {
                         code: student.studentCode || 'N/A',
                         name: firstName,
                         phone: phone,
-                        type: type,
+                        type: isSocialClub ? 'Social Club' : type,
                         teacher: teacher,
+                        isSocialClub: isSocialClub,
                         profileUrl: `https://world.wallstreetenglish.com/profile/${student.userId}/gradeBook`,
-                        message: this.createClassReminder(phone, firstName, datetime.time, datetime.date, true)
+                        message: this.createClassReminder(phone, firstName, datetime.time, datetime.date, true, isSocialClub)
                     });
                 }
             }
@@ -484,7 +538,7 @@ export class DataProcessor {
         return processed;
     }
     
-    // NEW: Global search processing function
+    // Enhanced Global search processing function with feedback, overall scores, and homework status
     processGlobalSearch(allData, levelSummaries, searchTerm) {
         const results = {};
         const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -513,6 +567,15 @@ export class DataProcessor {
                     
                     const levelData = levelSummaries[student.userId];
                     const result = this.getEncounterResult(levelData, unitNumber);
+                    const feedback = this.getEncounterFeedback(levelData, unitNumber);
+                    
+                    // Get overall scores for this unit
+                    const { lessonScore, workbookScore } = this.getUnitScores(levelData, unitNumber);
+                    const overall = this.formatScores(lessonScore, workbookScore);
+                    
+                    // Get lesson summaries for homework status
+                    const lessonSummaries = student.lessonSummaries?.[unitNumber] || [];
+                    const { lessonStatus, workbookStatus } = this.processLessonStatus(lessonSummaries);
 
                     results[student.userId].appearances.push({
                         date: datetime.date,
@@ -520,15 +583,21 @@ export class DataProcessor {
                         mode: 'Encounter',
                         details: `Unit ${unitNumber}`,
                         result: result,
-                        teacher: (cls.teacherFirstName || 'N/A').split(' ')[0]
+                        feedback: feedback,
+                        teacher: (cls.teacherFirstName || 'N/A').split(' ')[0],
+                        overall: overall, // Add overall scores
+                        lessonStatus: lessonStatus, // Add lesson status for highlighting
+                        workbookStatus: workbookStatus // Add workbook status for highlighting
                     });
                 } else { // CC
+                    const isSocialClub = this.isSocialClub(cls);
                     results[student.userId].appearances.push({
                         date: datetime.date,
                         time: datetime.time,
                         mode: 'CC',
-                        details: cls.categoriesAbbreviations || 'N/A',
+                        details: isSocialClub ? 'Social Club' : (cls.categoriesAbbreviations || 'N/A'),
                         result: 'N/A',
+                        feedback: null,
                         teacher: (cls.teacherFirstName || 'N/A').split(' ')[0]
                     });
                 }
@@ -559,7 +628,6 @@ export class DataProcessor {
         return results;
     }
 
-
     processEncounterStudent(student, unitNumber, datetime, levelData, isStandby = false) {
         const firstName = (student.firstName || 'N/A').split(' ')[0];
         const phone = this.formatPhoneNumber(student.mobileTelephone);
@@ -570,6 +638,7 @@ export class DataProcessor {
         const { lessonScore, workbookScore } = this.getUnitScores(levelData, unitNumber);
         const scores = this.formatScores(lessonScore, workbookScore);
         const result = this.getEncounterResult(levelData, unitNumber);
+        const feedback = this.getEncounterFeedback(levelData, unitNumber); // Get feedback
         
         const message = this.createClassReminder(phone, firstName, datetime.time, datetime.date, false);
         const homework = this.createHomeworkReminder(phone, lessonStatus, workbookStatus, datetime.date);
@@ -586,6 +655,8 @@ export class DataProcessor {
             workbooks: workbookStatus,
             scores: scores,
             result: result,
+            feedback: feedback, // Add feedback
+            unitNumber: unitNumber, // Add unit number for reference
             message: message,
             homework: homework,
             isStandby: isStandby,

@@ -2,10 +2,10 @@
 
 export const CONFIG = {
     API_BASE_URL: 'https://world.wallstreetenglish.com/api',
-    CENTER_ID: '0403a03c-0ea3-4185-8ace-d27e3b70e1e3',
+    CENTER_ID: '6aa32e2e-585f-4ba2-81db-0db65654d48e',
     
-    DAYS_TO_FETCH_AHEAD: 5,
-    DAYS_TO_FETCH_BEHIND: 2,
+    DAYS_TO_FETCH_AHEAD: 7,
+    DAYS_TO_FETCH_BEHIND: 3,
     TIMEZONE_OFFSET: 3,
     
     MAX_RETRIES: 3,
@@ -13,17 +13,16 @@ export const CONFIG = {
     REQUEST_TIMEOUT: 15000,
     // Increased cache timeout from 10 minutes to 4 hours for better performance
     CACHE_TIMEOUT: 4 * 60 * 60 * 1000,
-    BATCH_SIZE: 15,
-    MAX_PARALLEL_REQUESTS: 8,
+    BATCH_SIZE: 40,
+    MAX_PARALLEL_REQUESTS: 30,
     
     FIREBASE_CONFIG: {
-        apiKey: "AIzaSyA-ElnN5PxDalms3CcC3N9w0F69WRIQWzY",
-        authDomain: "wse-tracker.firebaseapp.com",
-        projectId: "wse-tracker",
-        storageBucket: "wse-tracker.firebasestorage.app",
-        messagingSenderId: "129262039821",
-        appId: "1:129262039821:web:3c9b9b127c3b7309cc3644",
-        measurementId: "G-TS77PDFWGV"
+        apiKey: "AIzaSyCX-PygcH6Wxw5VDHeTL36hOnttc1go7nY",
+        authDomain: "alkharj-daac4.firebaseapp.com",
+        projectId: "alkharj-daac4",
+        storageBucket: "alkharj-daac4.firebasestorage.app",
+        messagingSenderId: "301844728095",
+        appId: "1:301844728095:web:628c166221ad44d41e882a"
     },
     
     AUTO_REFRESH_INTERVAL: 10 * 60 * 1000,

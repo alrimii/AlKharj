@@ -1,13 +1,12 @@
 [build]
 command = "npm install --legacy-peer-deps"
-functions = "netlify/functions"
 publish = "."
 
 [functions]
 node_bundler = "esbuild"
 external_node_modules = ["@sparticuz/chromium"]
 
-Redirect rule for Single-Page Application (SPA) routing
+# Redirect rule for Single-Page Application (SPA) routing
 [[redirects]]
 from = "/*"
 to = "/index.html"
