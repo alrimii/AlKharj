@@ -5,7 +5,7 @@ export const CONFIG = {
     CENTER_ID: '6aa32e2e-585f-4ba2-81db-0db65654d48e',
     
     DAYS_TO_FETCH_AHEAD: 7,
-    DAYS_TO_FETCH_BEHIND: 3,
+    DAYS_TO_FETCH_BEHIND: 1,
     TIMEZONE_OFFSET: 3,
     
     MAX_RETRIES: 3,
@@ -13,8 +13,8 @@ export const CONFIG = {
     REQUEST_TIMEOUT: 15000,
     // Increased cache timeout from 10 minutes to 4 hours for better performance
     CACHE_TIMEOUT: 4 * 60 * 60 * 1000,
-    BATCH_SIZE: 40,
-    MAX_PARALLEL_REQUESTS: 30,
+    BATCH_SIZE: 20,
+    MAX_PARALLEL_REQUESTS: 15,
     
     FIREBASE_CONFIG: {
         apiKey: "AIzaSyCX-PygcH6Wxw5VDHeTL36hOnttc1go7nY",
